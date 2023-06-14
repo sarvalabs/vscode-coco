@@ -7,14 +7,39 @@
 		},
 		{
 			"include": "#strings"
+		},
+        {
+			"include": "#entity"
+		},
+        {
+			"include": "#storage_types"
+		},
+        {
+			"include": "#variables"
+		},
+        {
+			"include": "#line_comment"
+		},
+        {
+			"include": "#block_comment"
 		}
 	],
 	"repository": {
 		"keywords": {
-			"patterns": [{
-				"name": "keyword.control.coco",
-				"match": "\\b(if|while|for|return)\\b"
-			}]
+			"patterns": [
+                {
+                    "name": "keyword.control.coco",
+                    "match": "\\b(if|elif|else|for|break|pass|return|yield|coco)\\b"
+			    },
+                {
+                    "name": "keyword.state.coco",
+                    "match": "\\b(state|mutate|observe)\\b"
+                },
+                {
+                    "name": "keyword.exception.coco",
+                    "match": "\\b(try|catch)\\b"
+                }
+            ]
 		},
 		"strings": {
 			"name": "string.quoted.double.coco",
@@ -26,7 +51,72 @@
 					"match": "\\\\."
 				}
 			]
-		}
+		},
+        "entity": {
+            "patterns": [
+                {
+                    "name": "entity.name.class.coco",
+                    "match": "\\b(class|field|selfobj)\\b"
+                },
+                {
+                    "name": "entity.name.method.coco",
+                    "match": "\\b(method)\\b"
+                },
+                {
+                    "name": "entity.name.function.coco",
+                    "match": "\\b(func)\\b"
+                }
+            ]
+        },
+        "storage_types": {
+            "patterns": [
+                {
+                    "name": "storage.type.string.coco",
+                    "match": "\\b(String)\\b"
+                },
+                {
+                    "name": "storage.type.address.coco",
+                    "match": "\\b(Address)\\b"
+                },
+                {
+                    "name": "storage.type.bool.coco",
+                    "match": "\\b(Bool)\\b"
+                },
+                {
+                    "name": "storage.type.byte.coco",
+                    "match": "\\b(Bytes)\\b"
+                },
+                {
+                    "name": "storage.type.ptr.coco",
+                    "match": "\\b(Ptr)\\b"
+                },
+                {
+                    "name": "storage.type.numeric.coco",
+                    "match": "\\b(U64|U256|I64|I256)\\b"
+                }
+            ]
+        },
+        "line_comment": {
+			"comment": "Single-line comment",
+			"name": "comment.line.coco",
+			"begin": "//",
+			"end": "$"
+		},
+        "block_comment": {
+			"comment": "Block comments",
+			"name": "comment.block.coco",
+			"begin": "/\\*",
+			"end": "\\*/"
+		},
+        "variables": {
+            "patterns": [
+                {
+                    "name": "variable.language.coco",
+                    "match": "\\b(var)\\b"
+                }
+            ]
+        }
 	},
+
 	"scopeName": "source.coco"
 }
