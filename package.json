@@ -1,0 +1,25 @@
+{
+  "name": "coco",
+  "displayName": "COCO",
+  "description": "COCO provides syntax highlighting support for coco code on vscode",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.79.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [{
+      "id": "coco",
+      "aliases": ["COCO", "coco"],
+      "extensions": [".coco"],
+      "configuration": "./language-configuration.json"
+    }],
+    "grammars": [{
+      "language": "coco",
+      "scopeName": "source.coco",
+      "path": "./syntaxes/coco.tmLanguage.json"
+    }]
+  }
+}
