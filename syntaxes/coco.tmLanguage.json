@@ -1,66 +1,80 @@
 {
-	"$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
-	"name": "COCO",
-	"patterns": [
-		{
-			"include": "#keywords"
-		},
-		{
-			"include": "#strings"
-		},
+    "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+    "name": "COCO",
+    "patterns": [
         {
-			"include": "#entity"
-		},
+            "include": "#keywords"
+        },
         {
-			"include": "#storage_types"
-		},
+            "include": "#operators"
+        },
         {
-			"include": "#variables"
-		},
+            "include": "#strings"
+        },
         {
-			"include": "#line_comment"
-		},
+            "include": "#entity"
+        },
         {
-			"include": "#block_comment"
-		}
-	],
-	"repository": {
-		"keywords": {
-			"patterns": [
+            "include": "#storage_types"
+        },
+        {
+            "include": "#storage_modifiers"
+        },
+        {
+            "include": "#line_comment"
+        },
+        {
+            "include": "#block_comment"
+        },
+        {
+            "include": "#variables"
+        }
+    ],
+    "repository": {
+        "keywords": {
+            "patterns": [
                 {
                     "name": "keyword.control.coco",
                     "match": "\\b(if|elif|else|for|break|pass|return|yield|coco)\\b"
-			    },
+                },
                 {
                     "name": "keyword.state.coco",
                     "match": "\\b(state|mutate|observe)\\b"
                 },
                 {
                     "name": "keyword.exception.coco",
-                    "match": "\\b(try|catch)\\b"
+                    "match": "\\b(try|catch|throw)\\b"
                 }
             ]
-		},
-		"strings": {
-			"name": "string.quoted.double.coco",
-			"begin": "\"",
-			"end": "\"",
-			"patterns": [
-				{
-					"name": "constant.character.escape.coco",
-					"match": "\\\\."
-				}
-			]
-		},
+        },
+        "operators": {
+            "patterns": [
+                {
+                    "match": "(==|!=|<=|>=|<[^<]|>[^>])",
+                    "name": "keyword.operator.comparison.coco"
+                },
+                {
+                    "match": "(&&|!)",
+                    "name": "keyword.operator.logical.coco"
+                }
+            ]
+        },
+        "strings": {
+            "name": "string.quoted.double.coco",
+            "begin": "\"",
+            "end": "\"",
+            "patterns": [
+                {
+                    "name": "constant.character.escape.coco",
+                    "match": "\\\\."
+                }
+            ]
+        },
         "entity": {
             "patterns": [
                 {
                     "name": "entity.name.class.coco",
-                    "match": "\\b(class|field|selfobj)\\b"
-                },
-                {
-                    "name": "entity.name.method.coco",
-                    "match": "\\b(method)\\b"
+                    "match": "\\b(class|field|selfobj|method)\\b"
                 },
                 {
                     "name": "entity.name.function.coco",
@@ -96,27 +110,46 @@
                 }
             ]
         },
+        "storage_modifiers": {
+            "patterns": [
+                {
+                    "name": "storage.modifier.state.coco",
+                    "match": "\\b(persistent|ephemeral)\\b"
+                },
+                {
+                    "name": "storage.modifier.func.coco",
+                    "match": "\\b(deployer|invokable|interactable|enlister)\\b"
+                },
+                {
+                    "name": "storage.modifier.access.coco",
+                    "match": "\\b(invoke|emit)\\b"
+                }
+            ]
+        },
         "line_comment": {
-			"comment": "Single-line comment",
-			"name": "comment.line.coco",
-			"begin": "//",
-			"end": "$"
-		},
+            "comment": "Single-line comment",
+            "name": "comment.line.coco",
+            "begin": "//",
+            "end": "$"
+        },
         "block_comment": {
-			"comment": "Block comments",
-			"name": "comment.block.coco",
-			"begin": "/\\*",
-			"end": "\\*/"
-		},
+            "comment": "Block comments",
+            "name": "comment.block.coco",
+            "begin": "/\\*",
+            "end": "\\*/"
+        },
         "variables": {
             "patterns": [
                 {
-                    "name": "variable.language.coco",
+                    "name": "variable.parameter.coco",
                     "match": "\\b(var)\\b"
+                },
+                {
+                    "name": "variable.language.coco",
+                    "match": "\\b(ixn|env|self)\\b"
                 }
             ]
         }
-	},
-
-	"scopeName": "source.coco"
+    },
+    "scopeName": "source.coco"
 }
