@@ -3,6 +3,15 @@
     "name": "COCO",
     "patterns": [
         {
+            "include": "#constants"
+        },
+        {
+            "include": "#exceptions"
+        },
+        {
+            "include": "#entities"
+        },
+        {
             "include": "#keywords"
         },
         {
@@ -10,9 +19,6 @@
         },
         {
             "include": "#strings"
-        },
-        {
-            "include": "#entity"
         },
         {
             "include": "#storage_types"
@@ -28,22 +34,103 @@
         },
         {
             "include": "#variables"
+        },
+        {
+            "include": "#superglobals"
         }
     ],
     "repository": {
+        "constants": {
+            "patterns": [
+                {
+                    "comment": "Numeric",
+                    "match": "\\b((0x[0-9a-fA-F]+)|(0[0-7]+i?)|(\\d+([Ee]\\d+)?i?)|(\\d+[Ee][-+]\\d+i?))\\b",
+                    "name": "constant.numeric.coco"
+                },
+                {
+                    "comment": "Boolean",
+                    "match": "\\b(true|false)\\b",
+                    "name": "constant.language.coco"
+                }
+            ]
+        },
+        "entities": {
+            "patterns": [
+                {
+                    "comment": "Contract Name",
+                    "match": "(?<=coco)\\s+([a-zA-Z_]\\w*)",
+                    "captures": {
+                        "1": {
+                            "name": "entity.name.contract.coco"
+                        }
+                    }
+                },
+                {
+                    "comment": "Function declarations",
+                    "match": "^func\\s+(invokable|deployer)\\s+(\\w+)\\(",
+                    "captures": {
+                        "1": {
+                            "name": "keyword.function.coco"
+                        },
+                        "2": {
+                            "patterns": [
+                                {
+                                    "include": "#operators"
+                                }
+                            ]
+                        },
+                        "3": {
+                            "name": "entity.name.function"
+                        }
+                    }
+                }
+            ]
+        },
+        "exceptions": {
+            "patterns": [
+                {
+                    "match": "\\b(IntegerOverflow)\\b",
+                    "name": "support.type.exception.coco"
+                }
+            ]
+        },
         "keywords": {
             "patterns": [
                 {
                     "name": "keyword.control.coco",
-                    "match": "\\b(if|elif|else|for|break|pass|return|yield|coco)\\b"
+                    "match": "\\b(if|elif|else|for|break|pass|return|yield)\\b"
                 },
                 {
-                    "name": "keyword.state.coco",
-                    "match": "\\b(state|mutate|observe)\\b"
+                    "name": "keyword.action.coco",
+                    "match": "\\b(mutate|observe|transfer|emit|invoke|throw)\\b"
                 },
                 {
                     "name": "keyword.exception.coco",
-                    "match": "\\b(try|catch|throw)\\b"
+                    "match": "\\b(try|catch)\\b"
+                },
+                {
+                    "name": "keyword.class.coco",
+                    "match": "\\b(class)\\b"
+                },
+                {
+                    "name": "keyword.field.coco",
+                    "match": "\\b(field)\\b"
+                },
+                {
+                    "name": "keyword.method.coco",
+                    "match": "\\b(method)\\b"
+                },
+                {
+                    "name": "keyword.function.coco",
+                    "match": "\\b(func)\\b"
+                },
+                {
+                    "name": "keyword.module.coco",
+                    "match": "\\b(coco)\\b"
+                },
+                {
+                    "name": "keyword.state.coco",
+                    "match": "\\b(state)\\b"
                 }
             ]
         },
@@ -67,18 +154,6 @@
                 {
                     "name": "constant.character.escape.coco",
                     "match": "\\\\."
-                }
-            ]
-        },
-        "entity": {
-            "patterns": [
-                {
-                    "name": "entity.name.class.coco",
-                    "match": "\\b(class|field|selfobj|method)\\b"
-                },
-                {
-                    "name": "entity.name.function.coco",
-                    "match": "\\b(func)\\b"
                 }
             ]
         },
@@ -119,10 +194,6 @@
                 {
                     "name": "storage.modifier.func.coco",
                     "match": "\\b(deployer|invokable|interactable|enlister)\\b"
-                },
-                {
-                    "name": "storage.modifier.access.coco",
-                    "match": "\\b(invoke|emit)\\b"
                 }
             ]
         },
@@ -138,6 +209,14 @@
             "begin": "/\\*",
             "end": "\\*/"
         },
+        "superglobals": {
+            "patterns": [
+                {
+                    "name": "support.variable.coco",
+                    "match": "\\b(Ixn|Env|Sender|Receiver)\\b"
+                }
+            ]
+        },
         "variables": {
             "patterns": [
                 {
@@ -146,7 +225,7 @@
                 },
                 {
                     "name": "variable.language.coco",
-                    "match": "\\b(ixn|env|self)\\b"
+                    "match": "\\b(self)\\b"
                 }
             ]
         }
