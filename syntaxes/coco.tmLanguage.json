@@ -1,45 +1,99 @@
 {
     "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
     "name": "COCO",
+    "foldingStartMarker": "(?x)(?<=:)(?=[^\\S\\n]*)",
+    "foldingStopMarker": "(?x)(?=\\n(?!\\s*$))(?!\\n\\n)",
     "patterns": [
         {
+            "include": "#block_comment"
+        },
+        {
+            "include": "#brackets"
+        },
+        {
+            "include": "#classes"
+        },
+        {
             "include": "#constants"
+        },
+        {
+            "include": "#contract_name"
+        },
+        {
+            "include": "#emit_invoke"
         },
         {
             "include": "#exceptions"
         },
         {
-            "include": "#entities"
+            "include": "#functions"
         },
         {
             "include": "#keywords"
         },
         {
+            "include": "#line_comment"
+        },
+        {
+            "include": "#mutate"
+        },
+        {
             "include": "#operators"
-        },
-        {
-            "include": "#strings"
-        },
-        {
-            "include": "#storage_types"
         },
         {
             "include": "#storage_modifiers"
         },
         {
-            "include": "#line_comment"
+            "include": "#storage_types"
         },
         {
-            "include": "#block_comment"
-        },
-        {
-            "include": "#variables"
+            "include": "#strings"
         },
         {
             "include": "#superglobals"
+        },
+        {
+            "include": "#variables"
         }
     ],
     "repository": {
+        "block_comment": {
+            "comment": "Block comments",
+            "name": "comment.block.coco",
+            "begin": "/\\*",
+            "end": "\\*/"
+        },
+        "brackets": {
+            "patterns": [
+                {
+                    "match": "\\{|\\}",
+                    "name": "punctuation.other.bracket.curly.coco"
+                },
+                {
+                    "match": "\\(|\\)",
+                    "name": "punctuation.other.bracket.round.coco"
+                },
+                {
+                    "match": "\\[|\\]",
+                    "name": "punctuation.other.bracket.square.coco"
+                }
+            ]
+        },
+        "classes": {
+            "patterns": [
+                {
+                    "match": "\\b(class)\\s+([A-Za-z_][A-Za-z0-9_]*)\\b(?=\\s*:)\\s*:",
+                    "captures": {
+                        "1": {
+                            "name": "keyword.class.coco"
+                        },
+                        "2": {
+                            "name": "entity.name.class.coco"
+                        }
+                    }
+                }
+            ]
+        },
         "constants": {
             "patterns": [
                 {
@@ -54,7 +108,7 @@
                 }
             ]
         },
-        "entities": {
+        "contract_name": {
             "patterns": [
                 {
                     "comment": "Contract Name",
@@ -64,23 +118,19 @@
                             "name": "entity.name.contract.coco"
                         }
                     }
-                },
+                }
+            ]
+        },
+        "emit_invoke": {
+            "patterns": [
                 {
-                    "comment": "Function declarations",
-                    "match": "^func\\s+(invokable|deployer)\\s+(\\w+)\\(",
+                    "match": "\\b(emit|invoke)\\b\\s+([A-Za-z_][A-Za-z0-9_]*)",
                     "captures": {
                         "1": {
-                            "name": "keyword.function.coco"
+                            "name": "keyword.action.coco"
                         },
                         "2": {
-                            "patterns": [
-                                {
-                                    "include": "#operators"
-                                }
-                            ]
-                        },
-                        "3": {
-                            "name": "entity.name.function"
+                            "name": "entity.name.function.coco"
                         }
                     }
                 }
@@ -94,6 +144,25 @@
                 }
             ]
         },
+        "functions": {
+            "patterns": [
+                {
+                    "comment": "Function declarations",
+                    "match": "^(func)\\s+(?:(invokable|deployer)\\s+)?(\\w+!?)\\(",
+                    "captures": {
+                        "1": {
+                            "name": "keyword.function.coco"
+                        },
+                        "2": {
+                            "name": "storage.modifier.func.coco"
+                        },
+                        "3": {
+                            "name": "entity.name.function.coco"
+                        }
+                    }
+                }
+            ]
+        },
         "keywords": {
             "patterns": [
                 {
@@ -102,31 +171,31 @@
                 },
                 {
                     "name": "keyword.action.coco",
-                    "match": "\\b(mutate|observe|transfer|emit|invoke|throw)\\b"
+                    "match": "\\b(observe|transfer|throw)\\b"
                 },
                 {
                     "name": "keyword.exception.coco",
                     "match": "\\b(try|catch)\\b"
                 },
                 {
-                    "name": "keyword.class.coco",
-                    "match": "\\b(class)\\b"
-                },
-                {
                     "name": "keyword.field.coco",
                     "match": "\\b(field)\\b"
+                },
+                {
+                    "name": "keyword.map.coco",
+                    "match": "\\b(Map)\\b"
                 },
                 {
                     "name": "keyword.method.coco",
                     "match": "\\b(method)\\b"
                 },
                 {
-                    "name": "keyword.function.coco",
-                    "match": "\\b(func)\\b"
-                },
-                {
                     "name": "keyword.module.coco",
                     "match": "\\b(coco)\\b"
+                },
+                {
+                    "name": "keyword.var.coco",
+                    "match": "\\b(var)\\b"
                 },
                 {
                     "name": "keyword.state.coco",
@@ -134,26 +203,42 @@
                 }
             ]
         },
-        "operators": {
+        "line_comment": {
+            "comment": "Single-line comment",
+            "name": "comment.line.coco",
+            "begin": "//",
+            "end": "$"
+        },
+        "mutate": {
             "patterns": [
                 {
-                    "match": "(==|!=|<=|>=|<[^<]|>[^>])",
-                    "name": "keyword.operator.comparison.coco"
-                },
-                {
-                    "match": "(&&|!)",
-                    "name": "keyword.operator.logical.coco"
+                    "match": "\\b(mutate)\\b|(<-|->)\\s*|([A-Za-z_][A-Za-z0-9_]*)\\.(State|Sender|Receiver)\\s*",
+                    "captures": {
+                        "1": {
+                            "name": "keyword.mutate.coco"
+                        },
+                        "2": {
+                            "name": "keyword.operator.assignment.coco"
+                        },
+                        "3": {
+                            "name": "entity.name.contract.coco"
+                        },
+                        "4": {
+                            "name": "support.variable.coco"
+                        }
+                    }
                 }
             ]
         },
-        "strings": {
-            "name": "string.quoted.double.coco",
-            "begin": "\"",
-            "end": "\"",
+        "operators": {
             "patterns": [
                 {
-                    "name": "constant.character.escape.coco",
-                    "match": "\\\\."
+                    "match": "(==|!=|<=|>=)",
+                    "name": "keyword.operator.comparison.coco"
+                },
+                {
+                    "match": "(=|\\+=|\\-=|\\|=|\\^=|\\*=|/=|%=)",
+                    "name": "keyword.operator.assignment.coco"
                 }
             ]
         },
@@ -190,24 +275,19 @@
                 {
                     "name": "storage.modifier.state.coco",
                     "match": "\\b(persistent|ephemeral)\\b"
-                },
-                {
-                    "name": "storage.modifier.func.coco",
-                    "match": "\\b(deployer|invokable|interactable|enlister)\\b"
                 }
             ]
         },
-        "line_comment": {
-            "comment": "Single-line comment",
-            "name": "comment.line.coco",
-            "begin": "//",
-            "end": "$"
-        },
-        "block_comment": {
-            "comment": "Block comments",
-            "name": "comment.block.coco",
-            "begin": "/\\*",
-            "end": "\\*/"
+        "strings": {
+            "name": "string.quoted.double.coco",
+            "begin": "\"",
+            "end": "\"",
+            "patterns": [
+                {
+                    "name": "constant.character.escape.coco",
+                    "match": "\\\\."
+                }
+            ]
         },
         "superglobals": {
             "patterns": [
@@ -219,10 +299,6 @@
         },
         "variables": {
             "patterns": [
-                {
-                    "name": "variable.parameter.coco",
-                    "match": "\\b(var)\\b"
-                },
                 {
                     "name": "variable.language.coco",
                     "match": "\\b(self)\\b"
