@@ -345,11 +345,34 @@
                 }
             ]
         },
+        "throw": {
+            "patterns": [
+                {
+                    "match": "\\b(emit|invoke)\\b\\s+([A-Za-z_][A-Za-z0-9_!]*)",
+                    "captures": {
+                        "1": {
+                            "name": "keyword.action.coco"
+                        },
+                        "2": {
+                            "name": "entity.name.function.coco"
+                        }
+                    }
+                }
+            ]
+        },
         "variables": {
             "patterns": [
                 {
                     "name": "variable.language.coco",
                     "match": "\\b(self)\\b"
+                },
+                {
+                    "match": "(?<=f\\\\\")([^\\\\\"]*\\\\$\\{.*?\\}|[^\\\\\"]*)\"",
+                    "captures": {
+                        "2": {
+                            "name": "variable.language.coco"
+                        }
+                    }
                 }
             ]
         }
