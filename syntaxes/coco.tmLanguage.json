@@ -1,6 +1,8 @@
 {
     "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
     "name": "COCO",
+    "foldingStartMarker": "(?=^(\\s{4}|\\t))(?!\\s*$)|^\\s*$",
+    "foldingStopMarker": "^\\s*$",
     "patterns": [
         {
             "include": "#block_comment"
@@ -187,7 +189,7 @@
             "patterns": [
                 {
                     "name": "keyword.control.coco",
-                    "match": "\\b(if|elif|else|for|break|pass|continue|return|yield)\\b"
+                    "match": "\\b(if|elif|else|for|break|pass|continue|return|yield|from)\\b"
                 },
                 {
                     "name": "keyword.action.coco",
@@ -287,6 +289,10 @@
                 {
                     "match": "(\\+|\\-|\\*|/|%)",
                     "name": "keyword.operator.arithmetic.coco"
+                },
+                {
+                    "match": "(&&|\\|\\||!)",
+                    "name": "keyword.operator.logical.coco"
                 }
             ]
         },
@@ -327,13 +333,42 @@
             ]
         },
         "strings": {
-            "name": "string.quoted.double.coco",
-            "begin": "\"",
-            "end": "\"",
+            "name": "string.quoted.other.coco",
             "patterns": [
+                {
+                    "name": "string.quoted.other.multiline.coco",
+                    "begin": "f\"",
+                    "end": "\"",
+                    "patterns": [
+                        {
+                            "name": "embedded-expression",
+                            "begin": "\\{",
+                            "end": "\\}",
+                            "patterns": [
+                                {
+                                    "include": "source.coco"
+                                }
+                            ]
+                        },
+                        {
+                            "name": "punctuation.other.bracket.curly.coco",
+                            "match": "\\{|\\}"
+                        }
+                    ]
+                },
                 {
                     "name": "constant.character.escape.coco",
                     "match": "\\\\."
+                },
+                {
+                    "name": "string.quoted.double.coco",
+                    "begin": "\"",
+                    "end": "\"",
+                    "patterns": [
+                        {
+                            "include": "source.coco"
+                        }
+                    ]
                 }
             ]
         },
