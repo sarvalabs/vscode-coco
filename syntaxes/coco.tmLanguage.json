@@ -1,8 +1,6 @@
 {
     "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
     "name": "COCO",
-    "foldingStartMarker": "(?=^(\\s{4}|\\t))(?!\\s*$)|^\\s*$",
-    "foldingStopMarker": "^\\s*$",
     "patterns": [
         {
             "include": "#block_comment"
@@ -18,9 +16,6 @@
         },
         {
             "include": "#contract_name"
-        },
-        {
-            "include": "#emit_invoke"
         },
         {
             "include": "#exceptions"
@@ -91,6 +86,7 @@
         "classes": {
             "patterns": [
                 {
+                    "comment": "Class Declaration",
                     "match": "\\b(class)\\s+([A-Za-z_][A-Za-z0-9_]*)\\b(?=\\s*:)\\s*:",
                     "captures": {
                         "1": {
@@ -106,12 +102,12 @@
         "constants": {
             "patterns": [
                 {
-                    "comment": "Numeric",
+                    "comment": "Numeric Value Declaration",
                     "match": "\\b((0x[0-9a-fA-F]+)|(0[0-7]+i?)|(\\d+([Ee]\\d+)?i?)|(\\d+[Ee][-+]\\d+i?))\\b",
                     "name": "constant.numeric.coco"
                 },
                 {
-                    "comment": "Boolean",
+                    "comment": "Boolean Value Declaration",
                     "match": "\\b(true|false)\\b",
                     "name": "constant.language.coco"
                 }
@@ -130,24 +126,10 @@
                 }
             ]
         },
-        "emit_invoke": {
-            "patterns": [
-                {
-                    "match": "\\b(emit|invoke)\\b\\s+([A-Za-z_][A-Za-z0-9_!]*)",
-                    "captures": {
-                        "1": {
-                            "name": "keyword.action.coco"
-                        },
-                        "2": {
-                            "name": "entity.name.function.coco"
-                        }
-                    }
-                }
-            ]
-        },
         "exceptions": {
             "patterns": [
                 {
+                    "comment": "Builtin Exceptions",
                     "match": "\\b(IntegerOverflow)\\b",
                     "name": "support.type.exception.coco"
                 }
@@ -156,6 +138,7 @@
         "extended_instructions": {
             "patterns": [
                 {
+                    "comment": "Local Function Calling",
                     "match": "(?<=\\.)[^.()]+(?=\\([^()]*\\))",
                     "captures": {
                         "0": {
@@ -164,6 +147,7 @@
                     }
                 },
                 {
+                    "comment": "Stdlib Functions",
                     "match": "\\b(?:Get|Set|IsAlpha|IsNumeric|IsLower|IsUpper|HasPrefix|HasSuffix|Contains|Split|Slice|ToLower|ToUpper|ToBytes|Abs|range)\\b",
                     "name": "support.function.stdlib.coco"
                 }
@@ -188,7 +172,7 @@
                 },
                 {
                     "comment": "Supporting functions",
-                    "match": "\\b(append|popend|haskey|merge)\\b(?=\\()",
+                    "match": "\\b(append|popend|haskey|merge|polorize|depolorize)\\b(?=\\()",
                     "name": "support.function.builtin.coco"
                 }
             ]
@@ -196,34 +180,42 @@
         "keywords": {
             "patterns": [
                 {
+                    "comment": "Control Keywords",
                     "name": "keyword.control.coco",
                     "match": "\\b(if|elif|else|for|break|pass|continue|return|yield|from|in)\\b"
                 },
                 {
+                    "comment": "Action Keywords",
                     "name": "keyword.action.coco",
                     "match": "\\b(observe|transfer|polorize|depolorize)\\b"
                 },
                 {
+                    "comment": "Exception Handling",
                     "name": "keyword.exception.coco",
                     "match": "\\b(try|catch)\\b"
                 },
                 {
+                    "comment": "Field Keyword",
                     "name": "keyword.field.coco",
                     "match": "\\b(field)\\b"
                 },
                 {
+                    "comment": "Map Keyword",
                     "name": "keyword.map.coco",
                     "match": "\\b(Map)\\b"
                 },
                 {
+                    "comment": "Coco Keyword",
                     "name": "keyword.module.coco",
                     "match": "\\b(coco)\\b"
                 },
                 {
+                    "comment": "State Keyword",
                     "name": "keyword.state.coco",
                     "match": "\\b(state)\\b"
                 },
                 {
+                    "comment": "Crypto Builtins",
                     "name": "keyword.builtins.coco",
                     "match": "\\b(Blake2b|Keccak256|len|Sha256)\\b"
                 }
@@ -254,6 +246,7 @@
         "mutate": {
             "patterns": [
                 {
+                    "comment": "Open/Closed Mutate Statement",
                     "match": "\\b(mutate)\\b|(<-|->)\\s*|([A-Za-z_][A-Za-z0-9_]*)\\.(State|Sender|Receiver)\\s*",
                     "captures": {
                         "1": {
@@ -275,26 +268,32 @@
         "operators": {
             "patterns": [
                 {
+                    "comment": "Comparison Operators",
                     "match": "(==|!=|<=|>=|<[^<]|>[^>])",
                     "name": "keyword.operator.comparison.coco"
                 },
                 {
+                    "comment": "AugAssign Operators",
                     "match": "(=|\\+=|\\-=|\\|=|\\^=|\\*=|/=|%=)",
                     "name": "keyword.operator.assignment.coco"
                 },
                 {
+                    "comment": "Decrement Operator",
                     "match": "\\-\\-",
                     "name": "keyword.operator.decrement.coco"
                 },
                 {
+                    "comment": "Increment Operator",
                     "match": "\\+\\+",
                     "name": "keyword.operator.increment.coco"
                 },
                 {
+                    "comment": "Arithmetic Operators",
                     "match": "(\\+|\\-|\\*|/|%)",
                     "name": "keyword.operator.arithmetic.coco"
                 },
                 {
+                    "comment": "Logical Operators",
                     "match": "(&&|\\|\\||!)",
                     "name": "keyword.operator.logical.coco"
                 }
@@ -303,26 +302,32 @@
         "storage_types": {
             "patterns": [
                 {
+                    "comment": "String Value",
                     "name": "storage.type.string.coco",
                     "match": "\\b(String)\\b"
                 },
                 {
+                    "comment": "Address Value",
                     "name": "storage.type.address.coco",
                     "match": "\\b(Address)\\b"
                 },
                 {
+                    "comment": "Boolean Value",
                     "name": "storage.type.bool.coco",
                     "match": "\\b(Bool)\\b"
                 },
                 {
+                    "comment": "Bytes Value",
                     "name": "storage.type.byte.coco",
                     "match": "\\b(Bytes)\\b"
                 },
                 {
+                    "comment": "Pointer Value",
                     "name": "storage.type.ptr.coco",
                     "match": "\\b(Ptr)\\b"
                 },
                 {
+                    "comment": "Numeric Types",
                     "name": "storage.type.numeric.coco",
                     "match": "\\b(U64|U256|I64|I256)\\b"
                 }
@@ -331,12 +336,14 @@
         "storage_modifiers": {
             "patterns": [
                 {
+                    "comment": "State Type Definitions",
                     "name": "storage.modifier.state.coco",
                     "match": "\\b(persistent|ephemeral)\\b"
                 }
             ]
         },
         "strings": {
+            "comment": "String/Fstring Patterns",
             "name": "string.quoted.other.coco",
             "patterns": [
                 {
@@ -374,6 +381,7 @@
         "superglobals": {
             "patterns": [
                 {
+                    "comment": "Superglobal Keywords",
                     "name": "support.variable.coco",
                     "match": "\\b(Ixn|Env|Sender|Receiver)\\b"
                 }
@@ -382,17 +390,7 @@
         "throw": {
             "patterns": [
                 {
-                    "match": "\\b(emit|invoke)\\b\\s+([A-Za-z_][A-Za-z0-9_!]*)",
-                    "captures": {
-                        "1": {
-                            "name": "keyword.action.coco"
-                        },
-                        "2": {
-                            "name": "entity.name.function.coco"
-                        }
-                    }
-                },
-                {
+                    "comment": "Throw Statement",
                     "name": "throwStatement",
                     "match": "\\b(throw)\\b(\\s+([a-zA-Z_][a-zA-Z0-9_]*))?\\s*(\\(\"[^\"]*\"\\))?",
                     "captures": {
@@ -424,6 +422,7 @@
                     }
                 },
                 {
+                    "comment": "Variable Declaration",
                     "name": "variable.declaration.coco",
                     "match": "\\b(var)\\b\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s+([a-zA-Z_][a-zA-Z0-9_]*\\b)?",
                     "captures": {
