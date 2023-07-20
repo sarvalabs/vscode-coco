@@ -51,7 +51,7 @@
     },
     "scripts": {
         "clean": "rm -rf ./dist/* && rm *.vsix",
-        "package": "vsce package -o coco.vsix"
+        "package": "vsce package"
     },
     "devDependencies": {
         "@vscode/vsce": "^2.19.0"
