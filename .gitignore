@@ -1,2 +1,8 @@
+# Node Modules
 node_modules
+
+# Package Artifacts
 *.vsix
+
+# IDE Settings
+.idea
