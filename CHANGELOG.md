@@ -1,9 +1,3 @@
-# Change Log
-
-All notable changes to the "coco" extension will be documented in this file.
-
-Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
-
-## [Unreleased]
-
-- Initial release
+## v0.1.0
+- Initial release of the **Coco Extension for Visual Studio Code**
+- Adds support for **Cocolang v0.1.0 (alpha)** with simple syntax highlighting
