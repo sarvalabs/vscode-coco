@@ -1,0 +1,30 @@
+name: Release
+
+on:
+  release: [published]
+
+jobs:
+  release-vsix:
+    name: Release VSIX Artifact
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Package VSIX
+        run: npm run package
+
+      - name: Upload VSIX to Release
+        uses: softprops/action-gh-release@v1
+        if: ${{startsWith(github.ref, 'refs/tags/') }}
+        with:
+          files: coco.vsix
