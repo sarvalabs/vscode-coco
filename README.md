@@ -3,7 +3,7 @@
 
 ## Features
 
-Introducing vscode-coco, a powerful extension that elevates your coding experience with precise syntax highlighting for [Your Language]. Enjoy customizable color themes, nested scope support, and seamless integration with other extensions. Boost productivity with smooth performance and comprehensive coverage of COCO code variants. Simplify your coding workflow and focus on what matters most – writing clean and efficient code.
+Introducing vscode-coco, a powerful extension that elevates your coding experience with precise syntax highlighting for COCO. Enjoy customizable color themes, nested scope support, and seamless integration with other extensions. Boost productivity with smooth performance and comprehensive coverage of COCO code variants. Simplify your coding workflow and focus on what matters most – writing clean and efficient code.
 
 ## Requirements
 
