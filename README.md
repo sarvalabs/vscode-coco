@@ -1,8 +1,11 @@
 # Coco for Visual Studio Code
 
-![license](https://img.shields.io/badge/license-MIT-informational?style=for-the-badge)
-![latest tag](https://img.shields.io/github/v/tag/sarvalabs/vscode-coco?color=blue&label=latest%20tag&sort=semver&style=for-the-badge)
-![issue count](https://img.shields.io/github/issues/sarvalabs/vscode-coco?style=for-the-badge&color=yellow)
+[latestrelease]: https://github.com/sarvalabs/vscode-coco/releases/latest
+[issueslink]: https://github.com/sarvalabs/vscode-coco/issues
+
+[![license](https://img.shields.io/badge/license-MIT-informational?style=for-the-badge)](./LICENSE)
+[![latest tag](https://img.shields.io/github/v/tag/sarvalabs/vscode-coco?color=blue&label=latest%20tag&sort=semver&style=for-the-badge)][latestrelease]
+[![issue count](https://img.shields.io/github/issues/sarvalabs/vscode-coco?style=for-the-badge&color=yellow)][issueslink]
 
 The VS Code Coco extension provides syntax highlighting for the [Coco programming language](http://cocolang.dev).
 
