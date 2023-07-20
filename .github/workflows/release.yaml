@@ -1,31 +1,62 @@
 name: Release
 
 on:
-  release:
-    types: [published]
+  push:
+    tags:
+      - v*
 
 jobs:
   release-vsix:
-    name: Release VSIX Artifact
+    name: Release & Publish
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Clone repository
         uses: actions/checkout@v3
 
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '16'
+          node-version: '18'
 
       - name: Install dependencies
         run: npm install
 
-      - name: Package VSIX
-        run: npm run package
+      - name: Obtain release version
+        id: release_version
+        run: |
+          TAGGED_VERSION="${GITHUB_REF/refs\/tags\/v/}"
+          
+          if [[ ! "${TAGGED_VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+.*$ ]]; then
+            echo "Invalid version tag '${TAGGED_VERSION}'"
+            exit 1
+          fi
+          
+          echo "EXT_VERSION=${TAGGED_VERSION}" >> $GITHUB_ENV
+          WRITTEN_VERSION="$(cat package.json | jq '.version' -r)"
+          
+          if [[ "${TAGGED_VERSION}" == *"-"* ]]; then
+            if [[ ! "${TAGGED_VERSION}" == "${WRITTEN_VERSION}"-rc.* ]]; then
+              echo "pre-release tag and version in package.json are not compatible: '${TAGGED_VERSION}' vs '${WRITTEN_VERSION}'"
+              exit 1
+            fi
+            echo "EXT_ISPREVIEW=1" >> $GITHUB_ENV
+          else
+            if [[ "${TAGGED_VERSION}" != "${WRITTEN_VERSION}" ]]; then
+              echo "release tag and version in package.json do not match: '${TAGGED_VERSION}' vs '${WRITTEN_VERSION}'"
+              exit 1
+            fi
+            echo "EXT_ISPREVIEW=0" >> $GITHUB_ENV
+          fi
 
-      - name: Upload VSIX to Release
+      - name: Package VSIX
+        run: vsce package -o "./coco-${{ env.EXT_VERSION }}.vsix"
+
+      - name: Upload VSIX to Release Assets
         uses: softprops/action-gh-release@v1
         if: ${{startsWith(github.ref, 'refs/tags/') }}
         with:
-          files: coco.vsix
+          name: Release ${{ env.EXT_VERSION }}
+          files: coco-${{ env.EXT_VERSION }}.vsix
+
+      # todo: publish to vs code marketplace
