@@ -4,7 +4,7 @@
     "description": "COCO provides syntax highlighting support for coco code on vscode",
     "version": "0.0.1",
     "engines": {
-        "vscode": "^1.79.0"
+        "vscode": "^1.59.0"
     },
     "categories": [
         "Programming Languages"
