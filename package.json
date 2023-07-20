@@ -1,25 +1,59 @@
 {
-  "name": "coco",
-  "displayName": "COCO",
-  "description": "COCO provides syntax highlighting support for coco code on vscode",
-  "version": "0.0.1",
-  "engines": {
-    "vscode": "^1.79.0"
-  },
-  "categories": [
-    "Programming Languages"
-  ],
-  "contributes": {
-    "languages": [{
-      "id": "coco",
-      "aliases": ["COCO", "coco"],
-      "extensions": [".coco"],
-      "configuration": "./language-configuration.json"
-    }],
-    "grammars": [{
-      "language": "coco",
-      "scopeName": "source.coco",
-      "path": "./syntaxes/coco.tmLanguage.json"
-    }]
-  }
+    "name": "coco",
+    "displayName": "Coco",
+    "description": "Syntax Highlighting for Cocolang on Visual Studio Code",
+    "version": "0.1.0",
+    "license": "MIT",
+    "author": {
+        "name": "Coco Team at Sarva Labs"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/sarvalabs/vscode-coco"
+    },
+    "bugs": {
+        "url": "https://github.com/sarvalabs/vscode-coco/issues"
+    },
+    "engines": {
+        "vscode": "^1.59.0",
+        "node": ">=12.0.0"
+    },
+    "categories": [
+        "Plugins",
+        "Syntax Highlighting",
+        "Programming Languages"
+    ],
+    "contributes": {
+        "languages": [
+            {
+                "id": "coco",
+                "extensions": [
+                    ".coco"
+                ],
+                "aliases": [
+                    "Coco",
+                    "Cocolang"
+                ],
+                "icon": {
+                    "light": "./icons/coco.png",
+                    "dark": "./icons/coco.png"
+                },
+                "configuration": "./languages/language-configuration.json"
+            }
+        ],
+        "grammars": [
+            {
+                "language": "coco",
+                "scopeName": "source.coco",
+                "path": "./syntaxes/coco.tmLanguage.json"
+            }
+        ]
+    },
+    "scripts": {
+        "clean": "rm -rf ./dist/* && rm *.vsix",
+        "package": "vsce package -o coco.vsix"
+    },
+    "devDependencies": {
+        "@vscode/vsce": "^2.19.0"
+    }
 }

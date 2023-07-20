@@ -1,65 +1,61 @@
-# coco README
+# Coco for Visual Studio Code
 
-This is the README for your extension "coco". After writing up a brief description, we recommend including the following sections.
 
 ## Features
 
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
-
-For example if there is an image subfolder under your extension project workspace:
-
-\!\[feature X\]\(images/feature-x.png\)
-
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
+Introducing vscode-coco, a powerful extension that elevates your coding experience with precise syntax highlighting for Coco. Enjoy customizable color themes, nested scope support, and seamless integration with other extensions. Boost productivity with smooth performance and comprehensive coverage of Coco code variants. Simplify your coding workflow and focus on what matters most – writing clean and efficient code.
 
 ## Requirements
 
-If you have any requirements or dependencies, add a section describing those and how to install and configure them.
+- [Visual Studio Code](https://code.visualstudio.com/download) - The code editor where you will use the extension.
 
-## Extension Settings
+### Installation
 
-Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
+To install the Coco VSIX extension, follow these steps:
 
-For example:
+1. Download the latest release of the Coco VSIX extension from the [GitHub repository](https://github.com/sarvalabs/vscode-coco).
 
-This extension contributes the following settings:
+2. Open Visual Studio Code.
 
-* `myExtension.enable`: Enable/disable this extension.
-* `myExtension.thing`: Set to `blah` to do something.
+3. In Visual Studio Code, go to the Extensions View by clicking on the Extensions icon in the Activity Bar on the side of the window or using the shortcut `Ctrl+Shift+X` (Windows/Linux) or `Cmd+Shift+X` (Mac).
 
-## Known Issues
+4. Click on the three dots menu icon (⋮) in the Extensions View's top-right corner, and select "Install from VSIX."
 
-Calling out known issues can help limit users opening duplicate issues against your extension.
+5. Browse to the location where you downloaded the Coco VSIX extension `.vsix` file, select it, and click "Open."
 
-## Release Notes
+6. The Coco VSIX extension will now be installed in Visual Studio Code.
 
-Users appreciate release notes as you update your extension.
+### Using the Extension
 
-### 1.0.0
+To use the Coco VSIX extension, follow these steps:
 
-Initial release of ...
+1. Open a project or file in Visual Studio Code that is relevant to the functionality provided by the extension.
 
-### 1.0.1
+2. The Coco VSIX extension should automatically start working if it has any features that apply to the current project or file. Otherwise, you may need to trigger the extension manually by interacting with its commands, settings, or other integration points.
 
-Fixed issue #.
+3. Refer to the extension's documentation or the README file of the Coco VSIX extension's GitHub repository to learn about its specific features and how to use them effectively.
 
-### 1.1.0
+### Uninstalling the Extension
 
-Added features X, Y, and Z.
+If you want to uninstall the Coco VSIX extension, follow these steps:
 
----
+1. Open Visual Studio Code.
 
-## Working with Markdown
+2. Go to the Extensions View by clicking on the Extensions icon in the Activity Bar on the side of the window or using the shortcut `Ctrl+Shift+X` (Windows/Linux) or `Cmd+Shift+X` (Mac).
 
-You can author your README using Visual Studio Code. Here are some useful editor keyboard shortcuts:
+3. Find the installed Coco VSIX extension in the Extensions View.
 
-* Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux).
-* Toggle preview (`Shift+Cmd+V` on macOS or `Shift+Ctrl+V` on Windows and Linux).
-* Press `Ctrl+Space` (Windows, Linux, macOS) to see a list of Markdown snippets.
+4. Click on the gear icon next to the Coco VSIX extension's name and select "Uninstall."
+
+5. Confirm the uninstallation when prompted.
+
+### Feedback and Issues
+
+If you encounter any issues with the Coco VSIX extension or have suggestions for improvements, please check the [extension's GitHub repository](https://github.com/sarvalabs/vscode-coco) for issue tracking. You can open a new issue to report problems or submit feature requests.
 
 ## For more information
 
-* [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-* [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
+* [COCOlang Website](http://cocolang.dev)
+* [MOI Protocol](https://moi.technology)
 
 **Enjoy!**
