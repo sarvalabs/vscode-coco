@@ -20,7 +20,7 @@ jobs:
           node-version: '18'
 
       - name: Install dependencies
-        run: npm install
+        run: npm install && npm install --only=dev
 
       - name: Obtain release version
         id: release_version
