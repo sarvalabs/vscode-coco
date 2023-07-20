@@ -18,9 +18,10 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: '18'
+          cache: 'npm'
 
       - name: Install dependencies
-        run: npm install && npm install --only=dev
+        run: npm install
 
       - name: Obtain release version
         id: release_version
@@ -50,7 +51,7 @@ jobs:
           fi
 
       - name: Package VSIX
-        run: vsce package -o "./coco-${{ env.EXT_VERSION }}.vsix"
+        run: npx vsce package -o "./coco-${{ env.EXT_VERSION }}.vsix"
 
       - name: Upload VSIX to Release Assets
         uses: softprops/action-gh-release@v1
@@ -58,5 +59,6 @@ jobs:
         with:
           name: Release ${{ env.EXT_VERSION }}
           files: coco-${{ env.EXT_VERSION }}.vsix
+          prerelease: ${{env.EXT_ISPREVIEW == 1}}
 
       # todo: publish to vs code marketplace
