@@ -2,7 +2,7 @@
     "name": "coco",
     "displayName": "Coco",
     "description": "Syntax Highlighting for Cocolang on Visual Studio Code",
-    "version": "0.1.0",
+    "version": "0.0.1",
     "license": "MIT",
     "author": {
         "name": "Coco Team at Sarva Labs"
