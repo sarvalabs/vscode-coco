@@ -1,12 +1,13 @@
 {
-    "name": "coco",
-    "displayName": "Coco",
+    "name": "cocolang",
+    "displayName": "Cocolang",
+    "icon": "icons/coco.png",
     "description": "Syntax Highlighting for Cocolang on Visual Studio Code",
     "version": "0.0.1",
     "license": "MIT",
     "publisher": "sarvalabs",
     "author": {
-        "name": "Coco Team at Sarva Labs"
+        "name": "Cocolang Team at Sarva Labs"
     },
     "repository": {
         "type": "git",

@@ -1,4 +1,4 @@
-# Coco for Visual Studio Code
+# Cocolang for Visual Studio Code
 
 [latestrelease]: https://github.com/sarvalabs/vscode-coco/releases/latest
 [issueslink]: https://github.com/sarvalabs/vscode-coco/issues
@@ -8,7 +8,7 @@
 ![minver_vscode](https://img.shields.io/badge/vs_code-^v0.1.59-informational?style=for-the-badge&color=purple)
 [![issue count](https://img.shields.io/github/issues/sarvalabs/vscode-coco?style=for-the-badge&color=yellow)][issueslink]
 
-The VS Code Coco extension provides syntax highlighting for the [Coco programming language](http://cocolang.dev).
+The VS Code Cocolang extension provides syntax highlighting for the [Coco programming language](http://cocolang.dev).
 
 ### Install from the Extension Marketplace
 Currently, the extension must be manually installed to VS Code using a `.vsix` file.  
@@ -32,6 +32,6 @@ code --install-extension coco.vsix
 
 
 ### Feedback and Issues
-If you encounter any issues with the Coco extension or have suggestions for improvements, please check 
-the extension's [GitHub repository](https://github.com/sarvalabs/vscode-coco) for issue tracking. 
+If you encounter any issues with the Cocolang extension or have suggestions for improvements, please 
+check the extension's [GitHub repository](https://github.com/sarvalabs/vscode-coco) for issue tracking.
 You can open a new issue to report problems or submit feature requests.
