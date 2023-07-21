@@ -2,6 +2,7 @@
 
 [latestrelease]: https://github.com/sarvalabs/vscode-coco/releases/latest
 [issueslink]: https://github.com/sarvalabs/vscode-coco/issues
+[marketplace]: https://marketplace.visualstudio.com/items?itemName=sarvalabs.cocolang
 
 [![license](https://img.shields.io/badge/license-MIT-informational?style=for-the-badge)](./LICENSE)
 [![latest tag](https://img.shields.io/github/v/tag/sarvalabs/vscode-coco?color=blue&label=latest%20tag&sort=semver&style=for-the-badge)][latestrelease]
@@ -11,8 +12,7 @@
 The VS Code Cocolang extension provides syntax highlighting for the [Coco programming language](http://cocolang.dev).
 
 ### Install from the Extension Marketplace
-Currently, the extension must be manually installed to VS Code using a `.vsix` file.  
-We are actively working to publish this extension on the Visual Studio Code Marketplace.
+This extension can be installed from the Visual Studio Code Extension Marketplace [here][marketplace].
 
 ### Install from a VSIX
 A `.vsix` files comes bundled with every release and can be downloaded from [here][latestrelease].  
