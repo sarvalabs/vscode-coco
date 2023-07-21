@@ -21,9 +21,7 @@
         "node": ">=12.0.0"
     },
     "categories": [
-        "Plugins",
-        "Syntax Highlighting",
-        "Programming Languages"
+        "Programming Languages",
     ],
     "contributes": {
         "languages": [
