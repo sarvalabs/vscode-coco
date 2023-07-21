@@ -9,6 +9,7 @@ jobs:
   release-vsix:
     name: Release & Publish
     runs-on: ubuntu-latest
+    if: github.repository == 'sarvalabs/vscode-coco'
 
     steps:
       - name: Clone repository
@@ -61,4 +62,6 @@ jobs:
           files: coco-${{ env.EXT_VERSION }}.vsix
           prerelease: ${{env.EXT_ISPREVIEW == 1}}
 
-      # todo: publish to vs code marketplace
+      - name: Publish to VS Code Extension Marketplace
+        if: env.EXT_ISPREVIEW != 1 && github.repository == 'sarvalabs/vscode-coco'
+        run: npx vsce publish -i "./coco-${{ env.EXT_VERSION }}.vsix" -p "${{ secrets.VSCE_TOKEN }}"
