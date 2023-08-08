@@ -191,7 +191,7 @@
                 },
                 {
                     "comment": "Supporting functions",
-                    "match": "\\b(append|popend|haskey|merge|polorize|depolorize)\\b(?=\\()",
+                    "match": "\\b(append|popend|merge)\\b(?=\\()",
                     "name": "support.function.builtin.coco"
                 }
             ]
@@ -206,7 +206,7 @@
                 {
                     "comment": "Action Keywords",
                     "name": "keyword.action.coco",
-                    "match": "\\b(observe|transfer|polorize|depolorize)\\b"
+                    "match": "\\b(observe|transfer)\\b"
                 },
                 {
                     "comment": "Exception Handling",
@@ -236,7 +236,12 @@
                 {
                     "comment": "Crypto Builtins",
                     "name": "keyword.builtins.coco",
-                    "match": "\\b(Blake2b|Keccak256|Sha256)\\b"
+                    "match": "\\b(blake2b|keccak256|sha256|sigverify)\\b"
+                },
+                {
+                    "comment": "Serial Builtins",
+                    "name": "keyword.builtins.coco",
+                    "match": "\\b(polorize|depolorize)\\b"
                 },
                 {
                     "comment": "Special Methods",
