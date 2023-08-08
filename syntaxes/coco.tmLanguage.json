@@ -201,7 +201,7 @@
                 {
                     "comment": "Control Keywords",
                     "name": "keyword.control.coco",
-                    "match": "\\b(if|elif|else|for|break|pass|continue|return|yield|from|in)\\b"
+                    "match": "\\b(if|else|for|break|pass|continue|return|yield|from|in)\\b"
                 },
                 {
                     "comment": "Action Keywords",
