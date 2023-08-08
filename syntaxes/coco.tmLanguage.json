@@ -39,7 +39,7 @@
             "include": "#methods"
         },
         {
-            "include": "#mutate"
+            "include": "#state_access"
         },
         {
             "include": "#operators"
@@ -272,14 +272,14 @@
                 }
             ]
         },
-        "mutate": {
+        "state_access": {
             "patterns": [
                 {
-                    "comment": "Open/Closed Mutate Statement",
-                    "match": "\\b(mutate)\\b|(<-|->)\\s*|([A-Za-z_][A-Za-z0-9_]*)\\.(State|Sender|Receiver)\\s*",
+                    "comment": "Open/Closed State Access Statement",
+                    "match": "\\b(mutate|observe)\\b|(<-|->)\\s*|([A-Za-z_][A-Za-z0-9_]*)\\.(State|Sender|Receiver)\\s*",
                     "captures": {
                         "1": {
-                            "name": "keyword.mutate.coco"
+                            "name": "keyword.state.coco"
                         },
                         "2": {
                             "name": "keyword.operator.assignment.coco"
@@ -325,6 +325,11 @@
                     "comment": "Logical Operators",
                     "match": "(&&|\\|\\||!)",
                     "name": "keyword.operator.logical.coco"
+                },
+                {
+                    "comment": "Inclusivity Operator",
+                    "match": "\\?(?=(?:[^'\"]|\"[^\"]*\"|'[^']*')*$)",
+                    "name": "keyword.operator.inclusivity.coco"
                 }
             ]
         },
