@@ -230,7 +230,7 @@
                 },
                 {
                     "comment": "State Keyword",
-                    "name": "keyword.state.coco",
+                    "name": "keyword.state.accessor.coco",
                     "match": "\\b(state)\\b"
                 },
                 {
