@@ -6,3 +6,5 @@ node_modules
 
 # IDE Settings
 .idea
+
+.DS_Store
