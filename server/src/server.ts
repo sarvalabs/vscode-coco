@@ -13,11 +13,9 @@ import {
 	TextDocumentSyncKind,
 	InitializeResult
 } from 'vscode-languageserver/node';
-
 import { completionItems, completionDetails } from './modules/completion';
-import {
-	TextDocument
-} from 'vscode-languageserver-textdocument';
+import { TextDocument } from 'vscode-languageserver-textdocument';
+import { statefulValidation } from './modules/validation';
 
 // Create a connection for the server, using Node's IPC as a transport.
 // Also include all preview / proposed LSP features.
@@ -78,48 +76,13 @@ connection.onInitialized(() => {
 	}
 });
 
-// The example settings
-interface ExampleSettings {
-	maxNumberOfProblems: number;
+// Coco configuration settings to be implemented
+interface CocoSettings {
 }
-
-// The global settings, used when the `workspace/configuration` request is not supported by the client.
-// Please note that this is not the case when using this server with the client provided in this example
-// but could happen with other clients.
-const defaultSettings: ExampleSettings = { maxNumberOfProblems: 1000 };
-let globalSettings: ExampleSettings = defaultSettings;
 
 // Cache the settings of all open documents
-const documentSettings: Map<string, Thenable<ExampleSettings>> = new Map();
+const documentSettings: Map<string, Thenable<CocoSettings>> = new Map();
 
-connection.onDidChangeConfiguration(change => {
-	if (hasConfigurationCapability) {
-		// Reset all cached document settings
-		documentSettings.clear();
-	} else {
-		globalSettings = <ExampleSettings>(
-			(change.settings.languageServerExample || defaultSettings)
-		);
-	}
-
-	// Revalidate all open text documents
-	documents.all().forEach(validateTextDocument);
-});
-
-function getDocumentSettings(resource: string): Thenable<ExampleSettings> {
-	if (!hasConfigurationCapability) {
-		return Promise.resolve(globalSettings);
-	}
-	let result = documentSettings.get(resource);
-	if (!result) {
-		result = connection.workspace.getConfiguration({
-			scopeUri: resource,
-			section: 'cocolangServer'
-		});
-		documentSettings.set(resource, result);
-	}
-	return result;
-}
 
 
 // Only keep settings for open documents
@@ -134,55 +97,11 @@ documents.onDidChangeContent(change => {
 });
 
 async function validateTextDocument(textDocument: TextDocument): Promise<void> {
-	const settings = await getDocumentSettings(textDocument.uri);
 
 	const text = textDocument.getText();
-	const lines = text.split(/\r?\n/);
 	const diagnostics: Diagnostic[] = [];
 
-	const endpointPattern = /^\s*(endpoint|func)\s+(\w+)\s*(\w+)(!)?\s*\([^)]*\):\s*$/;
-	const mutatePattern = /^\s*mutate\s*(.*)?$/;
-	const statefulFuncPattern = /^\s*(\w+)!\(([^)]*)\)$/
-
-	for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
-		const line = lines[lineIndex];
-
-		const endpointMatch = line.match(endpointPattern);
-		if (endpointMatch) {
-			const endpointName = endpointMatch[1];
-			const action = endpointMatch[2];
-			const hasExclamation = !!endpointMatch[4]; // Check if '!' is present
-			let hasMutateKeyword = false;
-			let hasStatefulFunc = false;
-			// Check for 'mutate' keyword after the endpoint declaration
-			for (let bodyLineIndex = lineIndex + 1; bodyLineIndex < lines.length; bodyLineIndex++) {
-				const bodyLine = lines[bodyLineIndex];
-				if (!(/^\s*$/.test(bodyLine))) { // Skip empty lines
-					if (bodyLine.match(mutatePattern)) {
-						hasMutateKeyword = true;
-					}
-					if (bodyLine.match(statefulFuncPattern)) {
-						hasStatefulFunc = true;
-					}
-				}
-			}
-
-			if ((hasMutateKeyword || hasStatefulFunc) && !hasExclamation) {
-				const diagnostic: Diagnostic = {
-					severity: DiagnosticSeverity.Error,
-					range: {
-						start: { line: lineIndex, character: 0 },
-						end: { line: lineIndex, character: line.length }
-					},
-					message: `'${endpointName}' is missing the '!' staeful identifier while performing state modifications`,
-					source: 'ex'
-				};
-				diagnostics.push(diagnostic);
-				}
-
-		}
-	}
-
+	statefulValidation(text, diagnostics);
 	connection.sendDiagnostics({ uri: textDocument.uri, diagnostics });
 }
 
@@ -215,28 +134,3 @@ documents.listen(connection);
 
 // Listen on the connection
 connection.listen();
-
-function findMatchingBrace(text: string, startIndex: number): number {
-	let openBraces = 1;
-	for (let i = startIndex; i < text.length; i++) {
-		if (text[i] === '{') {
-			openBraces++;
-		} else if (text[i] === '}') {
-			openBraces--;
-			if (openBraces === 0) {
-				return i + 1;
-			}
-		}
-	}
-	return -1;
-}
-
-function containsMutateStatement(text: string): boolean {
-	const lines = text.split('\n');
-	for (const line of lines) {
-		if (line.trim().startsWith('mutate ')) {
-			return true;
-		}
-	}
-	return false;
-}

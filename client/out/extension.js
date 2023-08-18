@@ -19,7 +19,7 @@ function activate(context) {
     };
     // Options to control the language client
     const clientOptions = {
-        // Register the server for plain text documents
+        // Register the server for coco text documents
         documentSelector: [{ scheme: 'file', language: 'coco' }],
         synchronize: {
             // Notify the server about file changes to '.clientrc files contained in the workspace
@@ -39,4 +39,3 @@ function deactivate() {
     return client.stop();
 }
 exports.deactivate = deactivate;
-//# sourceMappingURL=extension.js.map
