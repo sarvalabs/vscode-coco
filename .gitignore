@@ -9,4 +9,6 @@ node_modules
 
 .DS_Store
 
-out
+**/server/out
+
+**/client/out
