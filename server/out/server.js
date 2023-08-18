@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const node_1 = require("vscode-languageserver/node");
-const completion_1 = require("./completion");
+const completion_1 = require("./modules/completion");
 const vscode_languageserver_textdocument_1 = require("vscode-languageserver-textdocument");
 // Create a connection for the server, using Node's IPC as a transport.
 // Also include all preview / proposed LSP features.
@@ -91,46 +91,48 @@ documents.onDidChangeContent(change => {
     validateTextDocument(change.document);
 });
 async function validateTextDocument(textDocument) {
-    // In this simple example we get the settings for every validate run.
     const settings = await getDocumentSettings(textDocument.uri);
-    // The validator creates diagnostics for all uppercase words length 2 and more
     const text = textDocument.getText();
-    const pattern = /\b[A-Z]{2,}\b/g;
-    let m;
-    let problems = 0;
+    const lines = text.split(/\r?\n/);
     const diagnostics = [];
-    while ((m = pattern.exec(text)) && problems < settings.maxNumberOfProblems) {
-        problems++;
-        const diagnostic = {
-            severity: node_1.DiagnosticSeverity.Warning,
-            range: {
-                start: textDocument.positionAt(m.index),
-                end: textDocument.positionAt(m.index + m[0].length)
-            },
-            message: `${m[0]} is all uppercase.`,
-            source: 'ex'
-        };
-        if (hasDiagnosticRelatedInformationCapability) {
-            diagnostic.relatedInformation = [
-                {
-                    location: {
-                        uri: textDocument.uri,
-                        range: Object.assign({}, diagnostic.range)
-                    },
-                    message: 'Spelling matters'
-                },
-                {
-                    location: {
-                        uri: textDocument.uri,
-                        range: Object.assign({}, diagnostic.range)
-                    },
-                    message: 'Particularly for names'
+    const endpointPattern = /^\s*(endpoint|func)\s+(\w+)\s*(\w+)(!)?\s*\([^)]*\):\s*$/;
+    const mutatePattern = /^\s*mutate\s*(.*)?$/;
+    const statefulFuncPattern = /^\s*(\w+)!\(([^)]*)\)$/;
+    for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+        const line = lines[lineIndex];
+        const endpointMatch = line.match(endpointPattern);
+        if (endpointMatch) {
+            const endpointName = endpointMatch[1];
+            const action = endpointMatch[2];
+            const hasExclamation = !!endpointMatch[4]; // Check if '!' is present
+            let hasMutateKeyword = false;
+            let hasStatefulFunc = false;
+            // Check for 'mutate' keyword after the endpoint declaration
+            for (let bodyLineIndex = lineIndex + 1; bodyLineIndex < lines.length; bodyLineIndex++) {
+                const bodyLine = lines[bodyLineIndex];
+                if (!(/^\s*$/.test(bodyLine))) { // Skip empty lines
+                    if (bodyLine.match(mutatePattern)) {
+                        hasMutateKeyword = true;
+                    }
+                    if (bodyLine.match(statefulFuncPattern)) {
+                        hasStatefulFunc = true;
+                    }
                 }
-            ];
+            }
+            if ((hasMutateKeyword || hasStatefulFunc) && !hasExclamation) {
+                const diagnostic = {
+                    severity: node_1.DiagnosticSeverity.Error,
+                    range: {
+                        start: { line: lineIndex, character: 0 },
+                        end: { line: lineIndex, character: line.length }
+                    },
+                    message: `'${endpointName}' is missing the '!' staeful identifier while performing state modifications`,
+                    source: 'ex'
+                };
+                diagnostics.push(diagnostic);
+            }
         }
-        diagnostics.push(diagnostic);
     }
-    // Send the computed diagnostics to VSCode.
     connection.sendDiagnostics({ uri: textDocument.uri, diagnostics });
 }
 connection.onDidChangeWatchedFiles(_change => {
@@ -154,4 +156,28 @@ connection.onCompletionResolve((item) => {
 documents.listen(connection);
 // Listen on the connection
 connection.listen();
+function findMatchingBrace(text, startIndex) {
+    let openBraces = 1;
+    for (let i = startIndex; i < text.length; i++) {
+        if (text[i] === '{') {
+            openBraces++;
+        }
+        else if (text[i] === '}') {
+            openBraces--;
+            if (openBraces === 0) {
+                return i + 1;
+            }
+        }
+    }
+    return -1;
+}
+function containsMutateStatement(text) {
+    const lines = text.split('\n');
+    for (const line of lines) {
+        if (line.trim().startsWith('mutate ')) {
+            return true;
+        }
+    }
+    return false;
+}
 //# sourceMappingURL=server.js.map
