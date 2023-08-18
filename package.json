@@ -17,9 +17,12 @@
         "url": "https://github.com/sarvalabs/vscode-coco/issues"
     },
     "engines": {
-        "vscode": "^1.75.0",
+        "vscode": "^1.59.0",
         "node": ">=12.0.0"
     },
+    "activationEvents": [
+        "onLanguage:coco"
+    ],
     "main": "./client/out/extension",
     "categories": [
         "Programming Languages"

@@ -74,8 +74,7 @@ connection.onDidChangeWatchedFiles(_change => {
 // This handler provides the initial list of the completion items.
 connection.onCompletion((_textDocumentPosition) => {
     // The pass parameter contains the position of the text document in
-    // which code complete got requested. For the example we ignore this
-    // info and always provide the same completion items.
+    // which code complete got requested.
     return (0, completion_1.completionItems)();
 });
 // This handler resolves additional information for the item selected in
