@@ -42,7 +42,7 @@ export function statefulValidation(text: String, diagnostics: Diagnostic[]) {
 						start: { line: lineIndex, character: 0 },
 						end: { line: lineIndex, character: line.length }
 					},
-					message: `'${endpointName}' is missing the '!' staeful identifier while performing state modifications`,
+					message: `'${endpointName}' is missing the '!' stateful identifier while performing state modifications`,
 					source: 'ex'
 				};
 				diagnostics.push(diagnostic);

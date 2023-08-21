@@ -1,23 +1,23 @@
 {
-    "name": "cocolang-lsp-server",
-    "displayName": "Cocolang Server",
-    "description": "Syntax Highlighting for Cocolang on Visual Studio Code",
-    "version": "0.2.0",
-    "license": "MIT",
-    "publisher": "sarvalabs",
-    "author": {
-        "name": "Cocolang Team at Sarva Labs"
-    },
-    "engines": {
+	"name": "cocolang-lsp-server",
+	"displayName": "Cocolang LSP Server",
+	"description": "Syntax Highlighting for Cocolang on Visual Studio Code",
+	"version": "0.2.0",
+	"license": "MIT",
+	"publisher": "sarvalabs",
+	"author": {
+		"name": "Cocolang Team at Sarva Labs"
+	},
+	"engines": {
 		"node": "*"
 	},
-    "repository": {
-        "type": "git",
-        "url": "https://github.com/sarvalabs/vscode-coco"
-    },
-    "bugs": {
-        "url": "https://github.com/sarvalabs/vscode-coco/issues"
-    },
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/sarvalabs/vscode-coco"
+	},
+	"bugs": {
+		"url": "https://github.com/sarvalabs/vscode-coco/issues"
+	},
 	"dependencies": {
 		"vscode-languageserver": "^8.1.0",
 		"vscode-languageserver-textdocument": "^1.0.8"
