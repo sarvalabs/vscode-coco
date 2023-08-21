@@ -4,7 +4,7 @@ import {
 } from 'vscode-languageserver/node';
 
 
-export function statefulValidation(text: String, diagnostics: Diagnostic[]) {
+export const statefulValidation = (text: String, diagnostics: Diagnostic[]) => {
 	const endpointPattern = /^\s*(endpoint|func)\s+(\w+)\s*(\w+)(!)?\s*\([^)]*\):\s*$/;
 	const mutatePattern = /^\s*mutate\s*(.*)?$/;
 	const statefulFuncPattern = /^\s*(\w+)!\(([^)]*)\)$/;

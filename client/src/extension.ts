@@ -10,7 +10,7 @@ import {
 
 let client: LanguageClient;
 
-export function activate(context: ExtensionContext) {
+export const activate = (context: ExtensionContext) => {
 	// The server is implemented in node
 	const serverModule = context.asAbsolutePath(
 		path.join('server', 'out', 'server.js')
@@ -48,7 +48,7 @@ export function activate(context: ExtensionContext) {
 	client.start();
 }
 
-export function deactivate(): Thenable<void> | undefined {
+export const deactivate = (): Thenable<void> | undefined => {
 	if (!client) {
 		return undefined;
 	}
