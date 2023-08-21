@@ -3,7 +3,7 @@
     "displayName": "Cocolang",
     "icon": "icons/coco.png",
     "description": "Syntax Highlighting for Cocolang on Visual Studio Code",
-    "version": "0.1.1",
+    "version": "0.2.0",
     "license": "MIT",
     "publisher": "sarvalabs",
     "author": {
@@ -20,6 +20,10 @@
         "vscode": "^1.59.0",
         "node": ">=12.0.0"
     },
+    "activationEvents": [
+        "onLanguage:coco"
+    ],
+    "main": "./client/out/extension",
     "categories": [
         "Programming Languages"
     ],
@@ -50,10 +54,22 @@
         ]
     },
     "scripts": {
+        "compile": "tsc -b",
         "clean": "rm -rf ./dist/* && rm *.vsix",
-        "package": "vsce package"
+        "package": "vsce package",
+        "vscode:prepublish": "npm run compile",
+		"watch": "tsc -b -w",
+		"lint": "eslint ./client/src ./server/src --ext .ts,.tsx",
+		"postinstall": "cd client && npm install && cd ../server && npm install && cd .."
     },
     "devDependencies": {
-        "@vscode/vsce": "^2.19.0"
+        "@vscode/vsce": "^2.19.0",
+        "@types/mocha": "^9.1.0",
+		"@types/node": "^16.18.34",
+		"@typescript-eslint/eslint-plugin": "^5.54.0",
+		"@typescript-eslint/parser": "^5.54.0",
+		"eslint": "^8.35.0",
+		"mocha": "^9.2.1",
+		"typescript": "^5.1.3"
     }
 }
