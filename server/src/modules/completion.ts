@@ -3,7 +3,7 @@ import {
 	CompletionItemKind,
 } from 'vscode-languageserver/node';
 
-export function completionItems(): CompletionItem[] {
+export const completionItems = (): CompletionItem[] => {
 	return [
 		{
 			label: 'mutate',
@@ -68,7 +68,7 @@ export function completionItems(): CompletionItem[] {
 	]
 }
 
-export function completionDetails(item: CompletionItem): CompletionItem {
+export const completionDetails = (item: CompletionItem): CompletionItem => {
 	switch (item.data) {
 		case 1:
 			item.detail = 'mutation action';
