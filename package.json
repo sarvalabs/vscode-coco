@@ -3,7 +3,7 @@
     "displayName": "Cocolang",
     "icon": "icons/coco.png",
     "description": "Syntax Highlighting for Cocolang on Visual Studio Code",
-    "version": "0.2.0",
+    "version": "0.2.1",
     "license": "MIT",
     "publisher": "sarvalabs",
     "author": {
