@@ -39,10 +39,23 @@
                     "Cocolang"
                 ],
                 "icon": {
-                    "light": "./icons/coco.png",
-                    "dark": "./icons/coco.png"
+                    "light": "./icons/coco_multicolor.png",
+                    "dark": "./icons/coco_multicolor.png"
                 },
                 "configuration": "./languages/language-configuration.json"
+            },
+            {
+                "id": "coco_nut",
+                "extensions": [
+                    ".nut"
+                ],
+                "aliases": [
+                    "Coco.nut"
+                ],
+                "icon": {
+                    "light": "./icons/coconut_light.png",
+                    "dark": "./icons/coconut_dark.png"
+                }
             }
         ],
         "grammars": [
@@ -50,6 +63,11 @@
                 "language": "coco",
                 "scopeName": "source.coco",
                 "path": "./syntaxes/coco.tmLanguage.json"
+            },
+            {
+                "language": "coco_nut",
+                "scopeName": "source.coconut",
+                "path": "./syntaxes/coco_nut.tmLanguage.json"
             }
         ]
     },
