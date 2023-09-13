@@ -39,8 +39,8 @@
                     "Cocolang"
                 ],
                 "icon": {
-                    "light": "./icons/coco_multicolor.png",
-                    "dark": "./icons/coco_multicolor.png"
+                    "light": "./icons/coco.png",
+                    "dark": "./icons/coco.png"
                 },
                 "configuration": "./languages/language-configuration.json"
             },
@@ -53,8 +53,8 @@
                     "Coco.nut"
                 ],
                 "icon": {
-                    "light": "./icons/coconut_light.png",
-                    "dark": "./icons/coconut_dark.png"
+                    "light": "./icons/coconut.png",
+                    "dark": "./icons/coconut.png"
                 }
             }
         ],
