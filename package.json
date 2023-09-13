@@ -54,8 +54,8 @@
                     "Coco Nut"
                 ],
                 "icon": {
-                    "light": "./icons/coco_grey.png",
-                    "dark": "./icons/coco_grey.png"
+                    "light": "./icons/coco-grey.png",
+                    "dark": "./icons/coco-grey.png"
                 }
             }
         ],
