@@ -50,11 +50,12 @@
                     ".nut"
                 ],
                 "aliases": [
-                    "Coco.nut"
+                    "coco.nut",
+                    "Coco Nut"
                 ],
                 "icon": {
-                    "light": "./icons/coconut.png",
-                    "dark": "./icons/coconut.png"
+                    "light": "./icons/coco_grey.png",
+                    "dark": "./icons/coco_grey.png"
                 }
             }
         ],
@@ -66,8 +67,7 @@
             },
             {
                 "language": "coco_nut",
-                "scopeName": "source.coconut",
-                "path": "./syntaxes/coco_nut.tmLanguage.json"
+                "scopeName": "source.coconut"
             }
         ]
     },
