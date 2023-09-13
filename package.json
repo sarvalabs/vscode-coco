@@ -3,7 +3,7 @@
     "displayName": "Cocolang",
     "icon": "icons/coco.png",
     "description": "Syntax Highlighting for Cocolang on Visual Studio Code",
-    "version": "0.2.0",
+    "version": "0.2.1",
     "license": "MIT",
     "publisher": "sarvalabs",
     "author": {
@@ -43,6 +43,20 @@
                     "dark": "./icons/coco.png"
                 },
                 "configuration": "./languages/language-configuration.json"
+            },
+            {
+                "id": "coco_nut",
+                "extensions": [
+                    ".nut"
+                ],
+                "aliases": [
+                    "coco.nut",
+                    "Coco Nut"
+                ],
+                "icon": {
+                    "light": "./icons/coco-grey.png",
+                    "dark": "./icons/coco-grey.png"
+                }
             }
         ],
         "grammars": [
@@ -50,6 +64,10 @@
                 "language": "coco",
                 "scopeName": "source.coco",
                 "path": "./syntaxes/coco.tmLanguage.json"
+            },
+            {
+                "language": "coco_nut",
+                "scopeName": "source.coconut"
             }
         ]
     },
