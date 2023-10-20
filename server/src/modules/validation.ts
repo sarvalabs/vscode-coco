@@ -23,6 +23,11 @@ export const statefulValidation = (text: String, diagnostics: Diagnostic[]) => {
 			// Check for 'mutate' keyword after the endpoint/func declaration
 			for (let bodyLineIndex = lineIndex + 1; bodyLineIndex < lines.length; bodyLineIndex++) {
 				const bodyLine = lines[bodyLineIndex];
+
+				if(/^(?!\s*$)[^\t ]/.test(bodyLine)){
+					break;
+				}
+
 				if (!(/^\s*$/.test(bodyLine))) { // Skip empty lines
 					if (bodyLine.match(mutatePattern)) {
 						hasMutateKeyword = true;
