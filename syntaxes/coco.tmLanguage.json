@@ -402,40 +402,43 @@
                     "patterns": [
                         {
                             "name": "string.quoted.other.multiline.coco",
-                            "begin": "f\"",
-                            "end": "\"",
+                            "begin": "{",
+                            "end": "}",
                             "patterns": [
                                 {
-                                    "name": "embedded-expression",
-                                    "begin": "\\{",
-                                    "end": "\\}",
-                                    "patterns": [
-                                        {
-                                            "include": "source.coco"
-                                        }
-                                    ]
-                                },
-                                {
-                                    "name": "punctuation.other.bracket.curly.coco",
-                                    "match": "\\{|\\}"
-                                },
-                                {
-                                    "match": "(?=\")",
-                                    "name": "string.quoted.other.multiline.coco",
-                                    "pop": true
+                                    "include": "source.coco"
                                 }
                             ]
+                        },
+                        {
+                            "name": "punctuation.other.bracket.curly.coco",
+                            "match": "\\{|\\}"
+                        },
+                        {
+                            "match": "[^\"{\\\\}]+|\\{",
+                            "name": "string.quoted.other.multiline.coco"
+                        },
+                        {
+                            "match": "\\\\.",
+                            "name": "constant.character.escape.coco"
+                        },
+                        {
+                            "match": "(?=\")",
+                            "name": "string.quoted.other.multiline.coco",
+                            "pop": true
                         }
                     ]
                 },
                 {
-                    "name": "constant.character.escape.coco",
-                    "match": "\\\\."
-                },
-                {
                     "name": "string.quoted.double.coco",
                     "begin": "\"",
-                    "end": "\""
+                    "end": "\"",
+                    "patterns": [
+                        {
+                            "name": "constant.character.escape.coco",
+                            "match": "\\\\."
+                        }
+                    ]
                 }
             ]
         },
