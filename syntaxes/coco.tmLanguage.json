@@ -430,13 +430,15 @@
                     ]
                 },
                 {
-                    "name": "constant.character.escape.coco",
-                    "match": "\\\\."
-                },
-                {
                     "name": "string.quoted.double.coco",
                     "begin": "\"",
-                    "end": "\""
+                    "end": "\"",
+                    "patterns": [
+                        {
+                            "name": "constant.character.escape.coco",
+                            "match": "\\\\."
+                        }
+                    ]
                 }
             ]
         },
