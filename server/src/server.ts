@@ -101,7 +101,7 @@ async function validateTextDocument(textDocument: TextDocument): Promise<void> {
 	const statefulMap = getCallableTypeMap(text)
 	
 	statefulValidation(text, diagnostics, statefulMap);
-	//checkNames(text, diagnostics);
+	checkNames(text, diagnostics);
 	connection.sendDiagnostics({ uri: textDocument.uri, diagnostics });
 }
 

@@ -68,7 +68,7 @@ export const statefulValidation = (text: String, diagnostics: Diagnostic[], type
 		const funcMatch = line.match(functionPattern);
 		const isStateful = bodyCheck(lines, lineIndex, typeMap);
 		let hasPersistent = false;
-		let callableName = "";
+		let callableName = null;
 		if (endpointMatch) {
 			callableName = endpointMatch[4];
 			hasPersistent = endpointMatch[3] == "persistent";
@@ -80,7 +80,7 @@ export const statefulValidation = (text: String, diagnostics: Diagnostic[], type
 		}
 
 
-		if (isStateful && !hasPersistent) {
+		if (isStateful && !hasPersistent && callableName) {
 			const diagnostic: Diagnostic = {
 				severity: DiagnosticSeverity.Error,
 				range: {
