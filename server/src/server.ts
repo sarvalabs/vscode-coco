@@ -13,7 +13,7 @@ import {
 } from 'vscode-languageserver/node';
 import { completionItems, completionDetails } from './modules/completion';
 import { TextDocument } from 'vscode-languageserver-textdocument';
-import { statefulValidation } from './modules/validation';
+import { getCallableTypeMap, statefulValidation } from './modules/validation';
 
 // Create a connection for the server, using Node's IPC as a transport.
 // Also include all preview / proposed LSP features.
@@ -98,8 +98,9 @@ async function validateTextDocument(textDocument: TextDocument): Promise<void> {
 
 	const text = textDocument.getText();
 	const diagnostics: Diagnostic[] = [];
+	const statefulMap = getCallableTypeMap(text)
 
-	statefulValidation(text, diagnostics);
+	statefulValidation(text, diagnostics, statefulMap);
 	connection.sendDiagnostics({ uri: textDocument.uri, diagnostics });
 }
 
