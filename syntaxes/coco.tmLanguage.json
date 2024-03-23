@@ -148,7 +148,26 @@
             "patterns": [
                 {
                     "comment": "Callable Endpoints",
-                    "match": "^(endpoint)\\s+(invokable|deployer)\\s+(\\w+!?)\\(",
+                    "match": "^(endpoint)\\s+(invokable)\\s+(persistent|readonly)\\s+(\\w+)",
+                    "captures": {
+                        "1": {
+                            "name": "keyword.function.coco"
+                        },
+                        "2": {
+                            "name": "storage.modifier.func.coco"
+                        },
+                        "3":
+                        {
+                            "name": "storage.modifier.state.coco"
+                        },                       
+                        "4": {
+                            "name": "entity.name.function.coco"
+                        }
+                    }
+                },
+                {
+                    "comment": "Deployer",
+                    "match": "^(endpoint)\\s+(deployer)\\s+(\\w+!?)\\(",
                     "captures": {
                         "1": {
                             "name": "keyword.function.coco"
@@ -194,11 +213,15 @@
             "patterns": [
                 {
                     "comment": "Function declarations",
-                    "match": "^(func)\\s+(?:()\\s+)?(\\w+!?)\\(",
+                    "match": "^(func)\\s+(persistent|readonly)\\s+(\\w+)",
                     "captures": {
                         "1": {
                             "name": "keyword.function.coco"
                         },
+                        "2":
+                        {
+                            "name": "storage.modifier.state.coco"
+                        },                       
                         "3": {
                             "name": "entity.name.function.coco"
                         }

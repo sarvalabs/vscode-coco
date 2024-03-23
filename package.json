@@ -67,7 +67,8 @@
             },
             {
                 "language": "coco_nut",
-                "scopeName": "source.coconut"
+                "scopeName": "source.coconut",
+                "path": "./syntaxes/coco.tmLanguage.json"
             }
         ]
     },
