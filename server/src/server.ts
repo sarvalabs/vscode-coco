@@ -97,11 +97,11 @@ async function validateTextDocument(textDocument: TextDocument): Promise<void> {
 
 	const text = textDocument.getText();
 	const diagnostics: Diagnostic[] = [];
-	const statefulMap = getCallableTypeMap(text);
-	const stateMap = getCollections(text);
+	const callableTypeMap = getCallableTypeMap(text);
+	const persistentCollections = getCollections(text);
 	
-	statefulValidation(text, diagnostics, statefulMap);
-	checkMutation(text, diagnostics, stateMap)
+	statefulValidation(text, diagnostics, callableTypeMap);
+	checkMutation(text, diagnostics, persistentCollections)
 	checkNames(text, diagnostics);
 	connection.sendDiagnostics({ uri: textDocument.uri, diagnostics });
 }
