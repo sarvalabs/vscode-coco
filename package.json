@@ -3,7 +3,7 @@
     "displayName": "Cocolang",
     "icon": "icons/coco.png",
     "description": "Syntax Highlighting for Cocolang on Visual Studio Code",
-    "version": "0.2.3",
+    "version": "0.2.4",
     "license": "MIT",
     "publisher": "sarvalabs",
     "author": {
@@ -67,7 +67,8 @@
             },
             {
                 "language": "coco_nut",
-                "scopeName": "source.coconut"
+                "scopeName": "source.coconut",
+                "path": "./syntaxes/coco.tmLanguage.json"
             }
         ]
     },

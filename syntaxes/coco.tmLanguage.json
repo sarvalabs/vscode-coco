@@ -148,7 +148,26 @@
             "patterns": [
                 {
                     "comment": "Callable Endpoints",
-                    "match": "^(endpoint)\\s+(invokable|deployer)\\s+(\\w+!?)\\(",
+                    "match": "^(endpoint)\\s+(invokable)\\s+(persistent|readonly)\\s+(\\w+)",
+                    "captures": {
+                        "1": {
+                            "name": "keyword.function.coco"
+                        },
+                        "2": {
+                            "name": "storage.modifier.func.coco"
+                        },
+                        "3":
+                        {
+                            "name": "storage.modifier.state.coco"
+                        },                       
+                        "4": {
+                            "name": "entity.name.function.coco"
+                        }
+                    }
+                },
+                {
+                    "comment": "Deployer",
+                    "match": "^(endpoint)\\s+(deployer)\\s+(\\w+!?)\\(",
                     "captures": {
                         "1": {
                             "name": "keyword.function.coco"
@@ -194,11 +213,15 @@
             "patterns": [
                 {
                     "comment": "Function declarations",
-                    "match": "^(func)\\s+(?:()\\s+)?(\\w+!?)\\(",
+                    "match": "^(func)\\s+(persistent|readonly)\\s+(\\w+)",
                     "captures": {
                         "1": {
                             "name": "keyword.function.coco"
                         },
+                        "2":
+                        {
+                            "name": "storage.modifier.state.coco"
+                        },                       
                         "3": {
                             "name": "entity.name.function.coco"
                         }
@@ -221,7 +244,7 @@
                 {
                     "comment": "Action Keywords",
                     "name": "keyword.action.coco",
-                    "match": "\\b(observe|transfer)\\b"
+                    "match": "\\b(observe|transfer|disperse)\\b"
                 },
                 {
                     "comment": "Exception Handling",
@@ -486,9 +509,25 @@
                     }
                 },
                 {
-                    "comment": "Variable Declaration",
-                    "name": "variable.declaration.coco",
-                    "match": "\\b(var)\\b\\s+((?:[a-zA-Z_][a-zA-Z0-9_]*\\s*,\\s*)*[a-zA-Z_][a-zA-Z0-9_]*)\\s+([a-zA-Z_][a-zA-Z0-9_]+\\b)?",
+                    "comment": "Storage Variable Declaration",
+                    "name": "storage.declaration.coco",
+                    "match": "\\b(storage)\\b\\s+((?:[a-zA-Z_][a-zA-Z0-9_]*\\s*,\\s*)*[a-zA-Z_][a-zA-Z0-9_]*)\\s+([a-zA-Z_][a-zA-Z0-9_]+\\b)?",
+                    "captures": {
+                        "1": {
+                            "name": "keyword.var.coco"
+                        },
+                        "2": {
+                            "name": "variable.other.declaration.coco"
+                        },
+                        "3": {
+                            "name": "storage.type.coco"
+                        }
+                    }
+                },
+                {
+                    "comment": "Memory Variable Declaration",
+                    "name": "memory.declaration.coco",
+                    "match": "\\b(memory)\\b\\s+((?:[a-zA-Z_][a-zA-Z0-9_]*\\s*,\\s*)*[a-zA-Z_][a-zA-Z0-9_]*)\\s+([a-zA-Z_][a-zA-Z0-9_]+\\b)?",
                     "captures": {
                         "1": {
                             "name": "keyword.var.coco"
