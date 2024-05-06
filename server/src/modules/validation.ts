@@ -195,7 +195,7 @@ export const getCollections = (text: String): Map<string, boolean>=> {
 					const typePattern = bodyLine.match(typeDecPattern);
 					if (typePattern) {
 						let words = typePattern[0].trimStart().split(" ")
-						if(words[1].startsWith("Map") || words[1].startsWith("[")){
+						if(words[1] && (words[1].startsWith("Map") || words[1].startsWith("["))){
 							collectionMap.set(words[0], true)
 						}
 						
