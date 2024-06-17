@@ -148,7 +148,7 @@
             "patterns": [
                 {
                     "comment": "Callable Endpoints",
-                    "match": "^(endpoint)\\s+(invokable)\\s+(persistent|readonly)\\s+(\\w+)",
+                    "match": "^(endpoint)\\s+(invoke|enlist|deploy)\\s+(?:(ephemeral|persistent|readonly)\\s+)?(\\w+)",
                     "captures": {
                         "1": {
                             "name": "keyword.function.coco"
@@ -161,21 +161,6 @@
                             "name": "storage.modifier.state.coco"
                         },                       
                         "4": {
-                            "name": "entity.name.function.coco"
-                        }
-                    }
-                },
-                {
-                    "comment": "Deployer",
-                    "match": "^(endpoint)\\s+(deployer)\\s+(\\w+!?)\\(",
-                    "captures": {
-                        "1": {
-                            "name": "keyword.function.coco"
-                        },
-                        "2": {
-                            "name": "storage.modifier.func.coco"
-                        },
-                        "3": {
                             "name": "entity.name.function.coco"
                         }
                     }
@@ -257,6 +242,11 @@
                     "match": "\\b(field)\\b"
                 },
                 {
+                    "comment": "Topic Keyword",
+                    "name": "keyword.topic.coco",
+                    "match": "\\b(topic)\\b"
+                },
+                {
                     "comment": "Map Keyword",
                     "name": "keyword.map.coco",
                     "match": "\\b(Map)\\b"
@@ -272,6 +262,11 @@
                     "match": "\\b(state)\\b"
                 },
                 {
+                    "comment": "Event Keyword",
+                    "name": "keyword.event.coco",
+                    "match": "\\b(event)\\b"
+                },
+                {
                     "comment": "Crypto Builtins",
                     "name": "keyword.builtins.coco",
                     "match": "\\b(blake2b|keccak256|sha256|sigverify)\\b"
@@ -282,9 +277,14 @@
                     "match": "\\b(polorize|depolorize)\\b"
                 },
                 {
+                    "comment": "Collection Builtins",
+                    "name": "keyword.builtins.coco",
+                    "match": "\\b(grow|shrink)\\b"
+                },
+                {
                     "comment": "Special Methods",
                     "name": "keyword.special.coco",
-                    "match": "\\b(len|join)\\b"
+                    "match": "\\b(len|join|remove|emit)\\b"
                 }
             ]
         },
@@ -298,12 +298,15 @@
             "patterns": [
                 {
                     "comment": "Method declarations",
-                    "match": "\\b(method)\\b\\s+([A-Za-z_][A-Za-z0-9_!]*)",
+                    "match": "\\b(method)\\b\\s+(?:(mutate|observe)\\s+)?([A-Za-z_][A-Za-z0-9_!]*)",
                     "captures": {
                         "1": {
                             "name": "keyword.method.coco"
                         },
                         "2": {
+                            "name": "storage.modifier.state.coco"
+                        },
+                        "3": {
                             "name": "entity.name.function.coco"
                         }
                     }
