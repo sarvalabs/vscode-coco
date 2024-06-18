@@ -41,7 +41,7 @@ export const checkNames = (text: String, diagnostics: Diagnostic[]) => {
 
 // getCallableTypeMap obtains a map containing all persistent functions and endpoints
 export const getCallableTypeMap = (text: String): Map<string, boolean> => {
-	const statefulEndpoint = /^(endpoint)\s+(invokable)\s+(persistent)\s+(\w+)$/;
+	const statefulEndpoint = /^(endpoint)\s+(invoke)\s+(persistent)\s+(\w+)$/;
 	const statefulFunction = /^(func)\s+(persistent)\s+(\w+)/;
 	const lines = text.split(/\r?\n/);
 	let statefulMap: Map<string, boolean> = new Map();
@@ -62,8 +62,8 @@ export const getCallableTypeMap = (text: String): Map<string, boolean> => {
 
 // statefulValidation ensures that endpoint type is persistent when mutation is performed
 export const statefulValidation = (text: string, diagnostics: Diagnostic[], typeMap: Map<string, boolean>) => {
-	const endpointPattern = /^(endpoint)\s+(invokable)\s+(persistent|readonly)\s+(\w+)/;
-	const functionPattern = /^(func)\s+(persistent|readonly)\s+(\w+)/;
+	const endpointPattern = /^(endpoint)\s+(invoke|enlist|deploy)\s+((persistent|readonly|ephemeral)\s+)?(\w+)/;
+	const functionPattern = /^(func)\s+(persistent|readonly|ephemeral)\s+(\w+)/;
 	const lines = text.split(/\r?\n/);
 	
 	for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
@@ -74,8 +74,8 @@ export const statefulValidation = (text: string, diagnostics: Diagnostic[], type
 		let hasPersistent = false;
 		let callableName = null;
 		if (endpointMatch) {
-			callableName = endpointMatch[4];
-			hasPersistent = endpointMatch[3] == "persistent";
+			callableName = endpointMatch[5];
+			hasPersistent = endpointMatch[4] == "persistent";
 		}
 		
 		if(funcMatch){
