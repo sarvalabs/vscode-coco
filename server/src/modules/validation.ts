@@ -5,7 +5,7 @@ import {
 
 // checkNames ensures that every callable's name begins with alphanumeric or underscore
 export const checkNames = (text: String, diagnostics: Diagnostic[]) => {
-	const endpointPattern = /^(endpoint)\s+(invoke|enlist|deploy)\s+((persistent|ephemeral|readonly)\s+)?(\w+)/;
+	const endpointPattern = /^(endpoint)\s+(invoke|enlist|deploy)\s+((persistent|ephemeral|readonly)\s+)?(\w+\s*\([^)]*\):)/;
 	const functionPattern = /^(func)\s+(persistent|ephemeral|readonly)\s+(\w+)/;
 	const lines = text.split(/\r?\n/);
 
