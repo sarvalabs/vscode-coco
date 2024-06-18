@@ -5,23 +5,24 @@ import {
 
 // checkNames ensures that every callable's name begins with alphanumeric or underscore
 export const checkNames = (text: String, diagnostics: Diagnostic[]) => {
-	const endpointInvokablePattern = /^(endpoint)\s+(invokable)\s+(persistent|readonly)\s+(\w+)/;
-	const endpointDeployerPattern = /^(endpoint)\s+(deployer)\s+(\w+)/;
-	const functionPattern = /^(func)\s+(persistent|readonly)\s+(\w+)/;
+	const endpointPattern = /^(endpoint)\s+(invoke|enlist|deploy)\s+((persistent|ephemeral|readonly)\s+)?(\w+)/;
+	const functionPattern = /^(func)\s+(persistent|ephemeral|readonly)\s+(\w+)/;
 	const lines = text.split(/\r?\n/);
 
 	for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
 		const line = lines[lineIndex];
-		const patternMatch = line.match(endpointDeployerPattern) || line.match(endpointInvokablePattern) || line.match(functionPattern);
+		const patternMatch = line.match(endpointPattern) || line.match(functionPattern);
+		let callableName = ""
+
 		if (patternMatch){
-			let callableName = null;
-			if(patternMatch[1] == "func" || patternMatch[2] == "deployer"){
-				callableName = patternMatch[3];
-			}
-			if(patternMatch[1] == "endpoint" && patternMatch[2] == "invokable"){
-				callableName = patternMatch[4];
+			if(patternMatch[1]=="endpoint"){
+				 callableName = patternMatch[5];
 			}
 
+			if(patternMatch[1]=="func"){
+				callableName = patternMatch[3]
+			}
+			
 			if(callableName && !/^[A-Za-z_]/.test(callableName)){
 				const diagnostic: Diagnostic = {
 					severity: DiagnosticSeverity.Error,
