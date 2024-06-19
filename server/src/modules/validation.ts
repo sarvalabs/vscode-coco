@@ -5,23 +5,24 @@ import {
 
 // checkNames ensures that every callable's name begins with alphanumeric or underscore
 export const checkNames = (text: String, diagnostics: Diagnostic[]) => {
-	const endpointInvokablePattern = /^(endpoint)\s+(invokable)\s+(persistent|readonly)\s+(\w+)/;
-	const endpointDeployerPattern = /^(endpoint)\s+(deployer)\s+(\w+)/;
-	const functionPattern = /^(func)\s+(persistent|readonly)\s+(\w+)/;
+	const endpointPattern = /^(endpoint)\s+(invoke|enlist|deploy)\s+((persistent|ephemeral|readonly)\s+)?(\w+\s*\([^)]*\):)/;
+	const functionPattern = /^(func)\s+(persistent|ephemeral|readonly)\s+(\w+)/;
 	const lines = text.split(/\r?\n/);
 
 	for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
 		const line = lines[lineIndex];
-		const patternMatch = line.match(endpointDeployerPattern) || line.match(endpointInvokablePattern) || line.match(functionPattern);
+		const patternMatch = line.match(endpointPattern) || line.match(functionPattern);
+		let callableName = ""
+
 		if (patternMatch){
-			let callableName = null;
-			if(patternMatch[1] == "func" || patternMatch[2] == "deployer"){
-				callableName = patternMatch[3];
-			}
-			if(patternMatch[1] == "endpoint" && patternMatch[2] == "invokable"){
-				callableName = patternMatch[4];
+			if(patternMatch[1]=="endpoint"){
+				 callableName = patternMatch[5];
 			}
 
+			if(patternMatch[1]=="func"){
+				callableName = patternMatch[3]
+			}
+			
 			if(callableName && !/^[A-Za-z_]/.test(callableName)){
 				const diagnostic: Diagnostic = {
 					severity: DiagnosticSeverity.Error,
@@ -40,7 +41,7 @@ export const checkNames = (text: String, diagnostics: Diagnostic[]) => {
 
 // getCallableTypeMap obtains a map containing all persistent functions and endpoints
 export const getCallableTypeMap = (text: String): Map<string, boolean> => {
-	const statefulEndpoint = /^(endpoint)\s+(invokable)\s+(persistent)\s+(\w+)$/;
+	const statefulEndpoint = /^(endpoint)\s+(invoke)\s+(persistent)\s+(\w+)$/;
 	const statefulFunction = /^(func)\s+(persistent)\s+(\w+)/;
 	const lines = text.split(/\r?\n/);
 	let statefulMap: Map<string, boolean> = new Map();
@@ -61,8 +62,8 @@ export const getCallableTypeMap = (text: String): Map<string, boolean> => {
 
 // statefulValidation ensures that endpoint type is persistent when mutation is performed
 export const statefulValidation = (text: string, diagnostics: Diagnostic[], typeMap: Map<string, boolean>) => {
-	const endpointPattern = /^(endpoint)\s+(invokable)\s+(persistent|readonly)\s+(\w+)/;
-	const functionPattern = /^(func)\s+(persistent|readonly)\s+(\w+)/;
+	const endpointPattern = /^(endpoint)\s+(invoke|enlist|deploy)\s+((persistent|readonly|ephemeral)\s+)?(\w+)/;
+	const functionPattern = /^(func)\s+(persistent|readonly|ephemeral)\s+(\w+)/;
 	const lines = text.split(/\r?\n/);
 	
 	for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
@@ -73,8 +74,8 @@ export const statefulValidation = (text: string, diagnostics: Diagnostic[], type
 		let hasPersistent = false;
 		let callableName = null;
 		if (endpointMatch) {
-			callableName = endpointMatch[4];
-			hasPersistent = endpointMatch[3] == "persistent";
+			callableName = endpointMatch[5];
+			hasPersistent = endpointMatch[4] == "persistent";
 		}
 		
 		if(funcMatch){
