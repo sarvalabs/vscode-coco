@@ -214,7 +214,7 @@
                 {
                     "comment": "Action Keywords",
                     "name": "keyword.action.coco",
-                    "match": "\\b(observe|transfer|disperse)\\b"
+                    "match": "\\b(observe|transfer|disperse|gather)\\b"
                 },
                 {
                     "comment": "Exception Handling",
