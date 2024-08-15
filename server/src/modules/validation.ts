@@ -62,7 +62,7 @@ export const getCallableTypeMap = (text: String): Map<string, boolean> => {
 
 // statefulValidation ensures that endpoint type is persistent when mutation is performed
 export const statefulValidation = (text: string, diagnostics: Diagnostic[], typeMap: Map<string, boolean>) => {
-	const endpointPattern = /^(endpoint)\s+(invoke|enlist|deploy)\s+((persistent|readonly|ephemeral)\s+)?(\w+)/;
+	const endpointPattern = /^(endpoint)\s+(invoke)\s+((persistent|readonly|ephemeral)\s+)?(\w+)/;
 	const functionPattern = /^(func)\s+(persistent|readonly|ephemeral)\s+(\w+)/;
 	const lines = text.split(/\r?\n/);
 	
@@ -75,12 +75,12 @@ export const statefulValidation = (text: string, diagnostics: Diagnostic[], type
 		let callableName = null;
 		if (endpointMatch) {
 			callableName = endpointMatch[5];
-			hasPersistent = endpointMatch[4] == "persistent";
+			hasPersistent = (endpointMatch[4] == "persistent") || (endpointMatch[4] == "ephemeral");
 		}
 		
 		if(funcMatch){
 			callableName = funcMatch[3];
-			hasPersistent = funcMatch[2] == "persistent";
+			hasPersistent = (funcMatch[2] == "persistent") || (funcMatch[2] == "ephemeral");
 		}
 
 
@@ -91,7 +91,7 @@ export const statefulValidation = (text: string, diagnostics: Diagnostic[], type
 					start: { line: lineIndex, character: 0 },
 					end: { line: lineIndex, character: line.length }
 				},
-				message: `'${callableName}' is missing the 'persistent' stateful identifier while performing state modifications`,
+				message: `'${callableName}' is missing the a stateful identifier while performing state modifications`,
 				source: 'ex'
 			};
 			diagnostics.push(diagnostic);
