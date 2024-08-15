@@ -76,14 +76,19 @@ export const completionItems = (): CompletionItem[] => {
 			data: 14
 		},
 		{
-			label: 'var',
+			label: 'memory',
 			kind: CompletionItemKind.Text,
 			data: 15
 		},
 		{
-			label: 'const',
+			label: 'storage',
 			kind: CompletionItemKind.Text,
 			data: 16
+		},
+		{
+			label: 'const',
+			kind: CompletionItemKind.Text,
+			data: 17
 		},
 	]
 }
@@ -147,10 +152,14 @@ export const completionDetails = (item: CompletionItem): CompletionItem => {
 			item.documentation = 'The name of the module is one of Coco’s superglobals. It can be used to access the state information of the module as well as other information about the logic module.';
 			break;
 		case 15:
-			item.detail = 'var declaration';
-			item.documentation = 'The var keyword is used to declare named variables with a specific type assigned in Coco';
+			item.detail = 'memory declaration';
+			item.documentation = 'The memory keyword is used to declare named memory variables with a specific type assigned in Coco';
 			break;
 		case 16:
+			item.detail = 'storage declaration';
+			item.documentation = 'The memory keyword is used to declare named storage variables with a specific type assigned in Coco';
+			break;
+		case 17:
 			item.detail = 'const declaration';
 			item.documentation = 'The const keyword is used to declare named constant values of a specific type in Coco'
 		default:
