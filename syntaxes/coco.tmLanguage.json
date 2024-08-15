@@ -214,7 +214,7 @@
                 {
                     "comment": "Action Keywords",
                     "name": "keyword.action.coco",
-                    "match": "\\b(observe|transfer|disperse|gather)\\b"
+                    "match": "\\b(observe|transfer|disperse|gather|generate)\\b"
                 },
                 {
                     "comment": "Exception Handling",
@@ -274,7 +274,7 @@
                 {
                     "comment": "Type Declaration",
                     "name": "keyword.types.coco",
-                    "match": "\\b(const|var)\\b"
+                    "match": "\\b(const|memory|storage)\\b"
                 }
             ]
         },
@@ -307,7 +307,7 @@
             "patterns": [
                 {
                     "comment": "Open/Closed State Access Statement",
-                    "match": "\\b(mutate|observe)\\b|(<-|->)\\s*|([A-Za-z_][A-Za-z0-9_]*)\\.(State|Sender|Receiver)\\s*",
+                    "match": "\\b(mutate|observe)\\b|(<-|->)\\s*|(State|Sender|Receiver)?\\.([A-Za-z_][A-Za-z0-9_]*)\\s*",
                     "captures": {
                         "1": {
                             "name": "keyword.state.coco"
@@ -316,10 +316,10 @@
                             "name": "keyword.operator.assignment.coco"
                         },
                         "3": {
-                            "name": "entity.name.contract.coco"
+                            "name": "support.variable.coco"
                         },
                         "4": {
-                            "name": "support.variable.coco"
+                            "name": "entity.name.contract.coco"
                         }
                     }
                 }
