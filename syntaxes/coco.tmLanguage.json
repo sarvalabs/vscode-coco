@@ -105,21 +105,6 @@
         "constants": {
             "patterns": [
                 {
-                    "name": "constant.declaration.coco",
-                    "match": "\\b(const)\\b\\s+((?:[a-zA-Z_][a-zA-Z0-9_]*\\s*,\\s*)*[a-zA-Z_][a-zA-Z0-9_]*)\\s+([a-zA-Z_][a-zA-Z0-9_]+\\b)?",
-                    "captures": {
-                        "1": { 
-                            "name": "keyword.const.coco" 
-                        },
-                        "2": {
-                            "name": "variable.other.declaration.coco"
-                        },
-                        "3": {
-                            "name": "storage.type.coco"
-                        }
-                    }
-                },
-                {
                     "comment": "Numeric Value Declaration",
                     "match": "\\b((0x[0-9a-fA-F]+)|(0[0-7]+i?)|(\\d+([Ee]\\d+)?i?)|(\\d+[Ee][-+]\\d+i?))\\b",
                     "name": "constant.numeric.coco"
@@ -148,7 +133,7 @@
             "patterns": [
                 {
                     "comment": "Callable Endpoints",
-                    "match": "^(endpoint)\\s+(invokable)\\s+(persistent|readonly)\\s+(\\w+)",
+                    "match": "^(endpoint)\\s+(invoke|enlist|deploy)\\s+(?:(ephemeral|persistent|readonly)\\s+)?(\\w+)",
                     "captures": {
                         "1": {
                             "name": "keyword.function.coco"
@@ -161,21 +146,6 @@
                             "name": "storage.modifier.state.coco"
                         },                       
                         "4": {
-                            "name": "entity.name.function.coco"
-                        }
-                    }
-                },
-                {
-                    "comment": "Deployer",
-                    "match": "^(endpoint)\\s+(deployer)\\s+(\\w+!?)\\(",
-                    "captures": {
-                        "1": {
-                            "name": "keyword.function.coco"
-                        },
-                        "2": {
-                            "name": "storage.modifier.func.coco"
-                        },
-                        "3": {
                             "name": "entity.name.function.coco"
                         }
                     }
@@ -213,7 +183,7 @@
             "patterns": [
                 {
                     "comment": "Function declarations",
-                    "match": "^(func)\\s+(persistent|readonly)\\s+(\\w+)",
+                    "match": "^(func)\\s+(?:(persistent|readonly)\\s+)?(\\w+)",
                     "captures": {
                         "1": {
                             "name": "keyword.function.coco"
@@ -244,7 +214,7 @@
                 {
                     "comment": "Action Keywords",
                     "name": "keyword.action.coco",
-                    "match": "\\b(observe|transfer|disperse)\\b"
+                    "match": "\\b(observe|transfer|disperse|gather|generate)\\b"
                 },
                 {
                     "comment": "Exception Handling",
@@ -255,6 +225,11 @@
                     "comment": "Field Keyword",
                     "name": "keyword.field.coco",
                     "match": "\\b(field)\\b"
+                },
+                {
+                    "comment": "Topic Keyword",
+                    "name": "keyword.topic.coco",
+                    "match": "\\b(topic)\\b"
                 },
                 {
                     "comment": "Map Keyword",
@@ -272,6 +247,11 @@
                     "match": "\\b(state)\\b"
                 },
                 {
+                    "comment": "Event Keyword",
+                    "name": "keyword.event.coco",
+                    "match": "\\b(event)\\b"
+                },
+                {
                     "comment": "Crypto Builtins",
                     "name": "keyword.builtins.coco",
                     "match": "\\b(blake2b|keccak256|sha256|sigverify)\\b"
@@ -282,9 +262,19 @@
                     "match": "\\b(polorize|depolorize)\\b"
                 },
                 {
+                    "comment": "Collection Builtins",
+                    "name": "keyword.builtins.coco",
+                    "match": "\\b(grow|shrink)\\b"
+                },
+                {
                     "comment": "Special Methods",
                     "name": "keyword.special.coco",
-                    "match": "\\b(len|join)\\b"
+                    "match": "\\b(len|join|remove|emit)\\b"
+                },
+                {
+                    "comment": "Type Declaration",
+                    "name": "keyword.types.coco",
+                    "match": "\\b(const|memory|storage)\\b"
                 }
             ]
         },
@@ -298,12 +288,15 @@
             "patterns": [
                 {
                     "comment": "Method declarations",
-                    "match": "\\b(method)\\b\\s+([A-Za-z_][A-Za-z0-9_!]*)",
+                    "match": "\\b(method)\\b\\s+(?:(mutate|observe)\\s+)?([A-Za-z_][A-Za-z0-9_!]*)",
                     "captures": {
                         "1": {
                             "name": "keyword.method.coco"
                         },
                         "2": {
+                            "name": "storage.modifier.state.coco"
+                        },
+                        "3": {
                             "name": "entity.name.function.coco"
                         }
                     }
@@ -314,7 +307,7 @@
             "patterns": [
                 {
                     "comment": "Open/Closed State Access Statement",
-                    "match": "\\b(mutate|observe)\\b|(<-|->)\\s*|([A-Za-z_][A-Za-z0-9_]*)\\.(State|Sender|Receiver)\\s*",
+                    "match": "\\b(mutate|observe)\\b|(<-|->)\\s*|(State|Sender|Receiver)?\\.([A-Za-z_][A-Za-z0-9_]*)\\s*",
                     "captures": {
                         "1": {
                             "name": "keyword.state.coco"
@@ -323,10 +316,10 @@
                             "name": "keyword.operator.assignment.coco"
                         },
                         "3": {
-                            "name": "entity.name.contract.coco"
+                            "name": "support.variable.coco"
                         },
                         "4": {
-                            "name": "support.variable.coco"
+                            "name": "entity.name.contract.coco"
                         }
                     }
                 }
