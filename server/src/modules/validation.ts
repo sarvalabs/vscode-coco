@@ -151,8 +151,15 @@ export const checkMutation = (text: string, diagnostics: Diagnostic[], mutateMap
 		if (mutateStatement) {
 			if(mutateStatement[1] && !mutateStatement[1].endsWith(":")){
 				let stateLoc  = mutateStatement[1].split(" ")[2]
-				if(stateLoc && stateLoc.split(".")[2]){
-					let location = stateLoc.split(".")[2]
+				let stateLocSplit = stateLoc.split(".")
+				if(stateLoc && stateLocSplit[1]){
+					let state = stateLocSplit[0]
+					let location = stateLocSplit[1]
+
+					if((state == "Sender" || state == "Receiver" || state == "State") && stateLoc.split(".")[2]){
+						location = stateLocSplit[2]
+					}
+
 					if(mutateMap.get(location)){
 						const diagnostic: Diagnostic = {
 							severity: DiagnosticSeverity.Error,
@@ -175,14 +182,16 @@ export const checkMutation = (text: string, diagnostics: Diagnostic[], mutateMap
 export const getCollections = (text: String): Map<string, boolean>=> {
 	let collectionMap: Map<string, boolean> = new Map();
 	const statePattern = /^(state)\s+(persistent)/;
+	const ephemeralPattern = /^(state)\s+(ephemeral)/;
 	const lines = text.split(/\r?\n/);
 	
 	for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
 		const line = lines[lineIndex];
 		const stateMatch = line.match(statePattern);
+		const ephemeralMatch = line.match(ephemeralPattern);
 		const typeDecPattern = /^(?!(\s*\/\/)).*/;
 
-		if(stateMatch){
+		if(stateMatch || ephemeralMatch){
 			// check all variables in the persistent state
 			for (let bodyLineIndex = lineIndex + 1; bodyLineIndex < lines.length; bodyLineIndex++) {
 				const bodyLine = lines[bodyLineIndex];

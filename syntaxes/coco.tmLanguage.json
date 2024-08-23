@@ -183,7 +183,7 @@
             "patterns": [
                 {
                     "comment": "Function declarations",
-                    "match": "^(func)\\s+(persistent|readonly)\\s+(\\w+)",
+                    "match": "^(func)\\s+(?:(persistent|readonly)\\s+)?(\\w+)",
                     "captures": {
                         "1": {
                             "name": "keyword.function.coco"
