@@ -30,6 +30,9 @@
             "include": "#functions"
         },
         {
+            "include": "#interface"
+        },
+        {
             "include": "#keywords"
         },
         {
@@ -141,10 +144,9 @@
                         "2": {
                             "name": "storage.modifier.func.coco"
                         },
-                        "3":
-                        {
+                        "3": {
                             "name": "storage.modifier.state.coco"
-                        },                       
+                        },
                         "4": {
                             "name": "entity.name.function.coco"
                         }
@@ -188,10 +190,9 @@
                         "1": {
                             "name": "keyword.function.coco"
                         },
-                        "2":
-                        {
+                        "2": {
                             "name": "storage.modifier.state.coco"
-                        },                       
+                        },
                         "3": {
                             "name": "entity.name.function.coco"
                         }
@@ -201,6 +202,22 @@
                     "comment": "Supporting functions",
                     "match": "\\b(append|popend|merge)\\b(?=\\()",
                     "name": "support.function.builtin.coco"
+                }
+            ]
+        },
+        "interface": {
+            "patterns": [
+                {
+                    "comment": "Interface Declaration",
+                    "match": "\\b(interface)\\s+([A-Za-z_][A-Za-z0-9_]*)\\b",
+                    "captures": {
+                        "1": {
+                            "name": "keyword.interface.coco"
+                        },
+                        "2": {
+                            "name": "entity.name.interface.coco"
+                        }
+                    }
                 }
             ]
         },
@@ -214,7 +231,7 @@
                 {
                     "comment": "Action Keywords",
                     "name": "keyword.action.coco",
-                    "match": "\\b(observe|transfer|disperse|gather|generate)\\b"
+                    "match": "\\b(observe|transfer|disperse|gather|generate|sweep)\\b"
                 },
                 {
                     "comment": "Exception Handling",
@@ -242,9 +259,19 @@
                     "match": "\\b(coco)\\b"
                 },
                 {
+                    "comment": "Interface Keyword",
+                    "name": "keyword.interface.coco",
+                    "match": "\\b(interface)\\b"
+                },
+                {
                     "comment": "State Keyword",
                     "name": "keyword.state.accessor.coco",
                     "match": "\\b(state)\\b"
+                },
+                {
+                    "comment": "Logic Keyword",
+                    "name": "keyword.logic.coco",
+                    "match": "\\b(logic)\\b"
                 },
                 {
                     "comment": "Event Keyword",
@@ -264,7 +291,7 @@
                 {
                     "comment": "Collection Builtins",
                     "name": "keyword.builtins.coco",
-                    "match": "\\b(grow|shrink)\\b"
+                    "match": "\\b(grow)\\b"
                 },
                 {
                     "comment": "Special Methods",
@@ -403,7 +430,7 @@
                 {
                     "comment": "State Type Definitions",
                     "name": "storage.modifier.state.coco",
-                    "match": "\\b(persistent|ephemeral)\\b"
+                    "match": "\\b(persistent|ephemeral|readonly)\\b"
                 }
             ]
         },
