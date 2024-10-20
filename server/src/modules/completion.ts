@@ -90,6 +90,11 @@ export const completionItems = (): CompletionItem[] => {
 			kind: CompletionItemKind.Text,
 			data: 17
 		},
+		{
+			label: 'interface',
+			kind: CompletionItemKind.Text,
+			data: 18
+		},
 	]
 }
 
@@ -162,6 +167,9 @@ export const completionDetails = (item: CompletionItem): CompletionItem => {
 		case 17:
 			item.detail = 'const declaration';
 			item.documentation = 'The const keyword is used to declare named constant values of a specific type in Coco'
+		case 18:
+			item.detail = 'interface declaration';
+			item.documentation = 'The interface keyword is used to declare state or logic interfaces in Coco'
 		default:
 			break;
 	}
