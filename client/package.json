@@ -2,7 +2,7 @@
 	"name": "cocolang-lsp-client",
 	"displayName": "Cocolang LSP Client",
 	"description": "Syntax Highlighting for Cocolang on Visual Studio Code",
-	"version": "0.2.5",
+	"version": "0.2.6",
 	"license": "MIT",
 	"publisher": "sarvalabs",
 	"author": {
