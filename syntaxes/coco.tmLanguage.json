@@ -133,7 +133,7 @@
             "patterns": [
                 {
                     "comment": "Callable Endpoints",
-                    "match": "^(endpoint)\\s+(invoke|enlist|deploy)\\s+(?:(ephemeral|persistent|readonly)\\s+)?(\\w+)",
+                    "match": "^(endpoint)\\s+(?:(invoke|enlist|deploy)\\s+)?(?:(ephemeral|persistent|readonly|static|dynamic)\\s+)?(\\w+)",
                     "captures": {
                         "1": {
                             "name": "keyword.function.coco"
@@ -141,10 +141,9 @@
                         "2": {
                             "name": "storage.modifier.func.coco"
                         },
-                        "3":
-                        {
+                        "3": {
                             "name": "storage.modifier.state.coco"
-                        },                       
+                        },
                         "4": {
                             "name": "entity.name.function.coco"
                         }
@@ -183,15 +182,14 @@
             "patterns": [
                 {
                     "comment": "Function declarations",
-                    "match": "^(func)\\s+(?:(persistent|readonly)\\s+)?(\\w+)",
+                    "match": "^(function)\\s+(?:(persistent|readonly|static|dynamic)\\s+)?(\\w+)",
                     "captures": {
                         "1": {
                             "name": "keyword.function.coco"
                         },
-                        "2":
-                        {
+                        "2": {
                             "name": "storage.modifier.state.coco"
-                        },                       
+                        },
                         "3": {
                             "name": "entity.name.function.coco"
                         }
@@ -372,9 +370,9 @@
                     "match": "\\b(String)\\b"
                 },
                 {
-                    "comment": "Address Value",
+                    "comment": "Identifier Value",
                     "name": "storage.type.address.coco",
-                    "match": "\\b(Address)\\b"
+                    "match": "\\b(Identifier)\\b"
                 },
                 {
                     "comment": "Boolean Value",
@@ -403,7 +401,7 @@
                 {
                     "comment": "State Type Definitions",
                     "name": "storage.modifier.state.coco",
-                    "match": "\\b(persistent|ephemeral)\\b"
+                    "match": "\\b(persistent|ephemeral|logic|actor)\\b"
                 }
             ]
         },
@@ -463,7 +461,7 @@
                 {
                     "comment": "Superglobal Keywords",
                     "name": "support.variable.coco",
-                    "match": "\\b(Ixn|Env|Sender|Receiver)\\b"
+                    "match": "\\b(Builtins|Invocation|Environment|Sender|Receiver)\\b"
                 }
             ]
         },

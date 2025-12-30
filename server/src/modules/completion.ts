@@ -90,6 +90,26 @@ export const completionItems = (): CompletionItem[] => {
 			kind: CompletionItemKind.Text,
 			data: 17
 		},
+		{
+			label: 'logic',
+			kind: CompletionItemKind.Text,
+			data: 18
+		},
+		{
+			label: 'actor',
+			kind: CompletionItemKind.Text,
+			data: 19
+		},
+		{
+			label: 'dynamic',
+			kind: CompletionItemKind.Text,
+			data: 20
+		},
+		{
+			label: 'static',
+			kind: CompletionItemKind.Text,
+			data: 21
+		},
 	]
 }
 
@@ -137,7 +157,7 @@ export const completionDetails = (item: CompletionItem): CompletionItem => {
 			break;
 		case 11:
 			item.detail = 'readonly state';
-			item.documentation = 'Readonly state refers to functions with not state modifications.';
+			item.documentation = 'Readonly state refers to functions with no state modifications.';
 			break;
 		case 12:
 			item.detail = 'class declaration';
@@ -162,6 +182,22 @@ export const completionDetails = (item: CompletionItem): CompletionItem => {
 		case 17:
 			item.detail = 'const declaration';
 			item.documentation = 'The const keyword is used to declare named constant values of a specific type in Coco'
+		case 18:
+			item.detail = 'logic state';
+			item.documentation = 'Logic state is the state of the module.';
+			break;
+		case 19:
+			item.detail = 'actor state';
+			item.documentation = 'Actor state refers to the state of the participant.';
+			break;
+		case 9:
+			item.detail = 'dynamic qualifier';
+			item.documentation = 'Endpoint qualifier dynamic allows modifying logic or actor state in endpoint';
+			break;
+		case 11:
+			item.detail = 'static qualifier';
+			item.documentation = 'Endpoint qualifier static (default if it\'s missing) assures endpoint is not modifying logic or actors state';
+			break;
 		default:
 			break;
 	}
