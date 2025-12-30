@@ -191,12 +191,12 @@ export const completionDetails = (item: CompletionItem): CompletionItem => {
 			item.documentation = 'Actor state refers to the state of the participant.';
 			break;
 		case 9:
-			item.detail = 'dynamic state';
-			item.documentation = 'Dynamic state refers to changing actor or logic state';
+			item.detail = 'dynamic qualifier';
+			item.documentation = 'Endpoint qualifier dynamic allows modifying logic or actor state in endpoint';
 			break;
 		case 11:
-			item.detail = 'static state';
-			item.documentation = 'Static state refers to functions with no state modifications.';
+			item.detail = 'static qualifier';
+			item.documentation = 'Endpoint qualifier static (default if it\'s missing) assures endpoint is not modifying logic or actors state';
 			break;
 		default:
 			break;
