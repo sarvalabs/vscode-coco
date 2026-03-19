@@ -9,10 +9,10 @@
 ![minver_vscode](https://img.shields.io/badge/vs_code-^v0.1.59-informational?style=for-the-badge&color=purple)
 [![issue count](https://img.shields.io/github/issues/sarvalabs/vscode-coco?style=for-the-badge&color=yellow)][issueslink]
 
-The VS Code Cocolang extension provides syntax highlighting for the [Coco programming language](http://cocolang.dev).
+The VS Code Cocolang extension provides language support for the [Coco programming language](http://cocolang.dev), including syntax highlighting, real-time error diagnostics, and Go to Definition.
 
 ### Compatibility 
-- v0.2.8 or greater is required for `cocolang@v0.7.0`
+- v0.3.0 or greater is required for `cocolang@v0.7.0` and above.
 
 ### Install from the Extension Marketplace
 This extension can be installed from the Visual Studio Code Extension Marketplace [here][marketplace].
