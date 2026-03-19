@@ -16,7 +16,7 @@ export const completionItems = (): CompletionItem[] => {
 			data: 2
 		},
 		{
-			label: 'func',
+			label: 'function',
 			kind: CompletionItemKind.Text,
 			data: 3
 		},
@@ -110,6 +110,26 @@ export const completionItems = (): CompletionItem[] => {
 			kind: CompletionItemKind.Text,
 			data: 21
 		},
+		{
+			label: 'emit',
+			kind: CompletionItemKind.Text,
+			data: 22
+		},
+		{
+			label: 'event',
+			kind: CompletionItemKind.Text,
+			data: 23
+		},
+		{
+			label: 'interface',
+			kind: CompletionItemKind.Text,
+			data: 24
+		},
+		{
+			label: 'asset',
+			kind: CompletionItemKind.Text,
+			data: 25
+		}
 	]
 }
 
@@ -124,7 +144,7 @@ export const completionDetails = (item: CompletionItem): CompletionItem => {
 			item.documentation = 'Observe statement is used to capture values from the state and sets it to a value.';
 			break;
 		case 3:
-			item.detail = 'func declaration';
+			item.detail = 'function declaration';
 			item.documentation = 'Functions are used for code reusability and maintainability. They only exist within the module scope.';
 			break;
 		case 4:
@@ -190,13 +210,29 @@ export const completionDetails = (item: CompletionItem): CompletionItem => {
 			item.detail = 'actor state';
 			item.documentation = 'Actor state refers to the state of the participant.';
 			break;
-		case 9:
+		case 20:
 			item.detail = 'dynamic qualifier';
 			item.documentation = 'Endpoint qualifier dynamic allows modifying logic or actor state in endpoint';
 			break;
-		case 11:
+		case 21:
 			item.detail = 'static qualifier';
 			item.documentation = 'Endpoint qualifier static (default if it\'s missing) assures endpoint is not modifying logic or actors state';
+			break;
+		case 22:
+			item.detail = 'emit event';
+			item.documentation = 'Emit sends an event to a log; event can be a string or a complex object, defined using event keyword.';
+			break;
+		case 23:
+			item.detail = 'event declaration';
+			item.documentation = 'Events in Coco define complex type with multiple fields, similar to classes; they can be emitted using emit command.';
+			break;
+		case 24:
+			item.detail = 'interface declaration';
+			item.documentation = 'Interfaace defines state structure, endpoints and asset endpoints in external logic that can be called from the current logic.';
+			break;
+		case 25:
+			item.detail = 'asset declaration';
+			item.documentation = 'Asset is a qualifier of the coco file to denote an asset logic or a section of an interface that lists endpoints in an asset logic.';
 			break;
 		default:
 			break;

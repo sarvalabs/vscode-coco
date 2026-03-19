@@ -12,7 +12,7 @@
 The VS Code Cocolang extension provides syntax highlighting for the [Coco programming language](http://cocolang.dev).
 
 ### Compatibility 
-- v0.2.4 or greater is required for `cocolang@v0.4.0`
+- v0.2.8 or greater is required for `cocolang@v0.7.0`
 
 ### Install from the Extension Marketplace
 This extension can be installed from the Visual Studio Code Extension Marketplace [here][marketplace].

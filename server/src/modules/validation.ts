@@ -6,7 +6,7 @@ import {
 // checkNames ensures that every callable's name begins with alphanumeric or underscore
 export const checkNames = (text: String, diagnostics: Diagnostic[]) => {
 	const endpointPattern = /^(endpoint)\s+(invoke|enlist|deploy)\s+((persistent|ephemeral|readonly)\s+)?(\w+\s*\([^)]*\):)/;
-	const functionPattern = /^(func)\s+(persistent|ephemeral|readonly)\s+(\w+)/;
+	const functionPattern = /^(function)\s+(persistent|ephemeral|readonly)\s+(\w+)/;
 	const lines = text.split(/\r?\n/);
 
 	for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
@@ -14,16 +14,16 @@ export const checkNames = (text: String, diagnostics: Diagnostic[]) => {
 		const patternMatch = line.match(endpointPattern) || line.match(functionPattern);
 		let callableName = ""
 
-		if (patternMatch){
-			if(patternMatch[1]=="endpoint"){
-				 callableName = patternMatch[5];
+		if (patternMatch) {
+			if (patternMatch[1] == "endpoint") {
+				callableName = patternMatch[5];
 			}
 
-			if(patternMatch[1]=="func"){
+			if (patternMatch[1] == "function") {
 				callableName = patternMatch[3]
 			}
-			
-			if(callableName && !/^[A-Za-z_]/.test(callableName)){
+
+			if (callableName && !/^[A-Za-z_]/.test(callableName)) {
 				const diagnostic: Diagnostic = {
 					severity: DiagnosticSeverity.Error,
 					range: {
@@ -42,16 +42,16 @@ export const checkNames = (text: String, diagnostics: Diagnostic[]) => {
 // getCallableTypeMap obtains a map containing all persistent functions and endpoints
 export const getCallableTypeMap = (text: String): Map<string, boolean> => {
 	const statefulEndpoint = /^(endpoint)\s+(invoke)\s+(persistent)\s+(\w+)$/;
-	const statefulFunction = /^(func)\s+(persistent)\s+(\w+)/;
+	const statefulFunction = /^(function)\s+(persistent)\s+(\w+)/;
 	const lines = text.split(/\r?\n/);
 	let statefulMap: Map<string, boolean> = new Map();
 	for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
 		const line = lines[lineIndex];
 		const statefulMatch = line.match(statefulEndpoint) || line.match(statefulFunction);
-		if (statefulMatch){
-			if(statefulMatch[1] == "func"){
+		if (statefulMatch) {
+			if (statefulMatch[1] == "function") {
 				statefulMap.set(statefulMatch[3], true)
-			}else{
+			} else {
 				statefulMap.set(statefulMatch[4], true)
 			}
 		}
@@ -63,9 +63,9 @@ export const getCallableTypeMap = (text: String): Map<string, boolean> => {
 // statefulValidation ensures that endpoint type is persistent when mutation is performed
 export const statefulValidation = (text: string, diagnostics: Diagnostic[], typeMap: Map<string, boolean>) => {
 	const endpointPattern = /^(endpoint)\s+(invoke)\s+((persistent|readonly|ephemeral)\s+)?(\w+)/;
-	const functionPattern = /^(func)\s+(persistent|readonly|ephemeral)\s+(\w+)/;
+	const functionPattern = /^(function)\s+(persistent|readonly|ephemeral)\s+(\w+)/;
 	const lines = text.split(/\r?\n/);
-	
+
 	for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
 		const line = lines[lineIndex];
 		const endpointMatch = line.match(endpointPattern);
@@ -77,8 +77,8 @@ export const statefulValidation = (text: string, diagnostics: Diagnostic[], type
 			callableName = endpointMatch[5];
 			hasPersistent = (endpointMatch[4] == "persistent") || (endpointMatch[4] == "ephemeral");
 		}
-		
-		if(funcMatch){
+
+		if (funcMatch) {
 			callableName = funcMatch[3];
 			hasPersistent = (funcMatch[2] == "persistent") || (funcMatch[2] == "ephemeral");
 		}
@@ -102,7 +102,7 @@ export const statefulValidation = (text: string, diagnostics: Diagnostic[], type
 }
 
 // bodyCheck checks the body of a routine for any mutation or stateful function calls
-const bodyCheck = (lines: string[], lineIndex: number, typeMap: Map<string, boolean>):boolean => {
+const bodyCheck = (lines: string[], lineIndex: number, typeMap: Map<string, boolean>): boolean => {
 
 	const mutatePattern = /^\s*mutate\s*(.*)?$/;
 	const statefulFuncPattern = /\s*\w+\([^)]*\)/;
@@ -113,12 +113,12 @@ const bodyCheck = (lines: string[], lineIndex: number, typeMap: Map<string, bool
 	for (let bodyLineIndex = lineIndex + 1; bodyLineIndex < lines.length; bodyLineIndex++) {
 		const bodyLine = lines[bodyLineIndex];
 
-		if(/^(?!\s*$)[^\t ]/.test(bodyLine)){
+		if (/^(?!\s*$)[^\t ]/.test(bodyLine)) {
 			break;
 		}
-		
+
 		// Skip empty lines
-		if (!(/^\s*$/.test(bodyLine))) { 
+		if (!(/^\s*$/.test(bodyLine))) {
 			if (bodyLine.match(mutatePattern)) {
 
 				hasMutateKeyword = true;
@@ -126,13 +126,13 @@ const bodyCheck = (lines: string[], lineIndex: number, typeMap: Map<string, bool
 			}
 
 			const funcPattern = bodyLine.match(statefulFuncPattern);
-			
+
 			if (funcPattern) {
 				const funcName = funcPattern[0].trimStart().split("(")[0];
-				if(typeMap.get(funcName)){
+				if (typeMap.get(funcName)) {
 					hasStatefulFunc = true;
 					break;
-				}	
+				}
 			}
 		}
 	}
@@ -149,18 +149,18 @@ export const checkMutation = (text: string, diagnostics: Diagnostic[], mutateMap
 
 		const mutateStatement = bodyLine.match(mutatePattern);
 		if (mutateStatement) {
-			if(mutateStatement[1] && !mutateStatement[1].endsWith(":")){
-				let stateLoc  = mutateStatement[1].split(" ")[2]
+			if (mutateStatement[1] && !mutateStatement[1].endsWith(":")) {
+				let stateLoc = mutateStatement[1].split(" ")[2]
 				let stateLocSplit = stateLoc.split(".")
-				if(stateLoc && stateLocSplit[1]){
+				if (stateLoc && stateLocSplit[1]) {
 					let state = stateLocSplit[0]
 					let location = stateLocSplit[1]
 
-					if((state == "Sender" || state == "Receiver" || state == "State") && stateLoc.split(".")[2]){
+					if ((state == "Sender" || state == "Receiver" || state == "State") && stateLoc.split(".")[2]) {
 						location = stateLocSplit[2]
 					}
 
-					if(mutateMap.get(location)){
+					if (mutateMap.get(location)) {
 						const diagnostic: Diagnostic = {
 							severity: DiagnosticSeverity.Error,
 							range: {
@@ -179,36 +179,36 @@ export const checkMutation = (text: string, diagnostics: Diagnostic[], mutateMap
 }
 
 // getCollections obtains all the collection objects in the persistent state
-export const getCollections = (text: String): Map<string, boolean>=> {
+export const getCollections = (text: String): Map<string, boolean> => {
 	let collectionMap: Map<string, boolean> = new Map();
 	const statePattern = /^(state)\s+(persistent)/;
 	const ephemeralPattern = /^(state)\s+(ephemeral)/;
 	const lines = text.split(/\r?\n/);
-	
+
 	for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
 		const line = lines[lineIndex];
 		const stateMatch = line.match(statePattern);
 		const ephemeralMatch = line.match(ephemeralPattern);
 		const typeDecPattern = /^(?!(\s*\/\/)).*/;
 
-		if(stateMatch || ephemeralMatch){
+		if (stateMatch || ephemeralMatch) {
 			// check all variables in the persistent state
 			for (let bodyLineIndex = lineIndex + 1; bodyLineIndex < lines.length; bodyLineIndex++) {
 				const bodyLine = lines[bodyLineIndex];
 
-				if(/^(?!\s*$)[^\t ]/.test(bodyLine)){
+				if (/^(?!\s*$)[^\t ]/.test(bodyLine)) {
 					break;
 				}
-				
+
 				// Skip empty lines
-				if (!(/^\s*$/.test(bodyLine))) { 
+				if (!(/^\s*$/.test(bodyLine))) {
 					const typePattern = bodyLine.match(typeDecPattern);
 					if (typePattern) {
 						let words = typePattern[0].trimStart().split(" ")
-						if(words[1] && (words[1].startsWith("Map") || words[1].startsWith("["))){
+						if (words[1] && (words[1].startsWith("Map") || words[1].startsWith("["))) {
 							collectionMap.set(words[0], true)
 						}
-						
+
 					}
 				}
 			}
