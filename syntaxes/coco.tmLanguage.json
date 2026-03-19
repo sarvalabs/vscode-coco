@@ -18,6 +18,9 @@
             "include": "#contract_name"
         },
         {
+            "include": "#events"
+        },
+        {
             "include": "#endpoints"
         },
         {
@@ -31,6 +34,15 @@
         },
         {
             "include": "#keywords"
+        },
+        {
+            "include": "#block_headers"
+        },
+        {
+            "include": "#interface_sections"
+        },
+        {
+            "include": "#callable_calls"
         },
         {
             "include": "#line_comment"
@@ -61,6 +73,9 @@
         },
         {
             "include": "#variables"
+        },
+        {
+            "include": "#interface"
         }
     ],
     "repository": {
@@ -119,11 +134,11 @@
         "contract_name": {
             "patterns": [
                 {
-                    "comment": "Contract Name",
+                    "comment": "Module Name",
                     "match": "(?<=coco)\\s+([a-zA-Z_]\\w*)",
                     "captures": {
                         "1": {
-                            "name": "entity.name.contract.coco"
+                            "name": "entity.name.type.module.coco"
                         }
                     }
                 }
@@ -133,7 +148,7 @@
             "patterns": [
                 {
                     "comment": "Callable Endpoints",
-                    "match": "^(endpoint)\\s+(?:(invoke|enlist|deploy)\\s+)?(?:(ephemeral|persistent|readonly|static|dynamic)\\s+)?(\\w+)",
+                    "match": "^(endpoint)\\s+(?:(invoke|enlist|deploy)\\s+)?(?:(ephemeral|persistent|readonly|static|dynamic|pure)\\s+)?(\\w+)",
                     "captures": {
                         "1": {
                             "name": "keyword.function.coco"
@@ -146,6 +161,34 @@
                         },
                         "4": {
                             "name": "entity.name.function.coco"
+                        }
+                    }
+                }
+            ]
+        },
+        "events": {
+            "patterns": [
+                {
+                    "comment": "Event Declaration",
+                    "match": "^\\s*(event)\\s+([A-Za-z_][A-Za-z0-9_]*)\\b(?=\\s*:)\\s*:",
+                    "captures": {
+                        "1": {
+                            "name": "keyword.event.coco"
+                        },
+                        "2": {
+                            "name": "entity.name.type.event.coco"
+                        }
+                    }
+                },
+                {
+                    "comment": "Event Fields",
+                    "match": "^\\s*(topic|field)\\s+([A-Za-z_][A-Za-z0-9_]*)\\b",
+                    "captures": {
+                        "1": {
+                            "name": "keyword.field.coco"
+                        },
+                        "2": {
+                            "name": "variable.other.member.coco"
                         }
                     }
                 }
@@ -182,7 +225,7 @@
             "patterns": [
                 {
                     "comment": "Function declarations",
-                    "match": "^(function)\\s+(?:(persistent|readonly|static|dynamic)\\s+)?(\\w+)",
+                    "match": "^(function)\\s+(?:(persistent|readonly|static|dynamic|pure)\\s+)?(\\w+)",
                     "captures": {
                         "1": {
                             "name": "keyword.function.coco"
@@ -207,17 +250,17 @@
                 {
                     "comment": "Control Keywords",
                     "name": "keyword.control.coco",
-                    "match": "\\b(if|else|for|break|pass|continue|return|yield|from|in)\\b"
+                    "match": "\\b(if|else|for|switch|case|default|break|pass|continue|return|yield|from|in)\\b"
                 },
                 {
                     "comment": "Action Keywords",
                     "name": "keyword.action.coco",
-                    "match": "\\b(observe|transfer|disperse|gather|generate)\\b"
+                    "match": "\\b(observe|transfer|disperse|gather|generate|sweep)\\b"
                 },
                 {
                     "comment": "Exception Handling",
                     "name": "keyword.exception.coco",
-                    "match": "\\b(try|catch)\\b"
+                    "match": "\\b(try|catch|finally|revert)\\b"
                 },
                 {
                     "comment": "Field Keyword",
@@ -237,7 +280,7 @@
                 {
                     "comment": "Coco Keyword",
                     "name": "keyword.module.coco",
-                    "match": "\\b(coco)\\b"
+                    "match": "\\b(coco|package|imports)\\b"
                 },
                 {
                     "comment": "State Keyword",
@@ -260,6 +303,11 @@
                     "match": "\\b(polorize|depolorize)\\b"
                 },
                 {
+                    "comment": "Make/Build Builtins",
+                    "name": "keyword.builtins.coco",
+                    "match": "\\b(make|build)\\b"
+                },
+                {
                     "comment": "Collection Builtins",
                     "name": "keyword.builtins.coco",
                     "match": "\\b(grow|shrink)\\b"
@@ -273,6 +321,69 @@
                     "comment": "Type Declaration",
                     "name": "keyword.types.coco",
                     "match": "\\b(const|memory|storage)\\b"
+                },
+                {
+                    "comment": "Asset Keyword",
+                    "name": "keyword.asset.coco",
+                    "match": "\\b(asset)\\b"
+                },
+                {
+                    "comment": "Endpoint Qualifiers",
+                    "name": "keyword.function.coco",
+                    "match": "\\b(invoke|enlist|deploy|interact)\\b"
+                },
+                {
+                    "comment": "Visibility/Scope Keywords",
+                    "name": "keyword.other.coco",
+                    "match": "\\b(pub|local)\\b"
+                }
+            ]
+        },
+        "block_headers": {
+            "patterns": [
+                {
+                    "comment": "Block headers",
+                    "match": "^\\s*(imports|default|switch|case|try|finally|if|else|for|mutate|observe|class|event|state|interface|endpoint|asset|method|function)\\b(?=\\s*:)",
+                    "captures": {
+                        "1": {
+                            "name": "keyword.control.coco"
+                        }
+                    }
+                }
+            ]
+        },
+        "interface_sections": {
+            "patterns": [
+                {
+                    "comment": "Interface endpoint section header",
+                    "match": "^\\s*(endpoint)\\b(?=\\s*:)",
+                    "captures": {
+                        "1": {
+                            "name": "keyword.function.coco"
+                        }
+                    }
+                },
+                {
+                    "comment": "Interface endpoint qualifiers",
+                    "match": "^\\s*(dynamic|static|pure)\\b(?=\\s+[A-Za-z_][A-Za-z0-9_]*\\s*\\()",
+                    "captures": {
+                        "1": {
+                            "name": "storage.modifier.state.coco"
+                        }
+                    }
+                }
+            ]
+        },
+        "callable_calls": {
+            "patterns": [
+                {
+                    "comment": "Callable invocations",
+                    "match": "\\b([A-Za-z_][A-Za-z0-9_]*)\\b(?=\\s*\\()",
+                    "captures": {
+                        "1": {
+                            "name": "entity.name.function.coco"
+                        }
+                    }
                 }
             ]
         },
@@ -461,7 +572,7 @@
                 {
                     "comment": "Superglobal Keywords",
                     "name": "support.variable.coco",
-                    "match": "\\b(Builtins|Invocation|Environment|Sender|Receiver)\\b"
+                    "match": "\\b(Builtins|Invocation|Environment|Sender|Receiver|Logic|Actor)\\b"
                 }
             ]
         },
@@ -490,6 +601,15 @@
                 {
                     "name": "variable.language.coco",
                     "match": "\\b(self)\\b"
+                },
+                {
+                    "comment": "Assignment LHS",
+                    "match": "^\\s*([A-Za-z_][A-Za-z0-9_]*)\\s*(?==)",
+                    "captures": {
+                        "1": {
+                            "name": "variable.other.assignment.coco"
+                        }
+                    }
                 },
                 {
                     "match": "(?<=f\\\\\")([^\\\\\"]*\\\\$\\{.*?\\}|[^\\\\\"]*)\"",
@@ -528,6 +648,23 @@
                         },
                         "3": {
                             "name": "storage.type.coco"
+                        }
+                    }
+                }
+            ]
+        },
+        "interface": {
+            "patterns": [
+                {
+                    "comment": "Interface Declaration",
+                    "name": "interface.declaration.coco",
+                    "match": "\\b(interface)\\s+([A-Za-z_][A-Za-z0-9_]*)\\b(?=\\s*:)\\s*:",
+                    "captures": {
+                        "1": {
+                            "name": "keyword.interface.coco"
+                        },
+                        "2": {
+                            "name": "entity.name.type.interface.coco"
                         }
                     }
                 }
