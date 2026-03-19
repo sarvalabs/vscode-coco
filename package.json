@@ -1,8 +1,8 @@
 {
     "name": "cocolang",
-    "displayName": "Cocolang",
+    "displayName": "Coco Programing Language",
     "icon": "icons/coco.png",
-    "description": "Syntax Highlighting for Cocolang on Visual Studio Code",
+    "description": "Language support for Coco Programing Language on Visual Studio Code",
     "version": "0.3.0",
     "license": "MIT",
     "publisher": "sarvalabs",

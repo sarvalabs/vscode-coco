@@ -1,4 +1,4 @@
-# Cocolang for Visual Studio Code
+# Coco Programing Language for Visual Studio Code
 
 [latestrelease]: https://github.com/sarvalabs/vscode-coco/releases/latest
 [issueslink]: https://github.com/sarvalabs/vscode-coco/issues
@@ -9,7 +9,7 @@
 ![minver_vscode](https://img.shields.io/badge/vs_code-^v0.1.59-informational?style=for-the-badge&color=purple)
 [![issue count](https://img.shields.io/github/issues/sarvalabs/vscode-coco?style=for-the-badge&color=yellow)][issueslink]
 
-The VS Code Cocolang extension provides language support for the [Coco programming language](http://cocolang.dev), including syntax highlighting, real-time error diagnostics, and Go to Definition.
+The VS Code Coco Programing Language extension provides language support for the [Coco programming language](http://cocolang.dev), including syntax highlighting, real-time error diagnostics, and Go to Definition.
 
 ### Compatibility 
 - v0.3.0 or greater is required for `cocolang@v0.7.0` and above.
@@ -35,6 +35,5 @@ code --install-extension coco.vsix
 
 
 ### Feedback and Issues
-If you encounter any issues with the Cocolang extension or have suggestions for improvements, please 
-check the extension's [GitHub repository](https://github.com/sarvalabs/vscode-coco) for issue tracking.
+If you encounter any issues with the Coco Programing Language extension or have suggestions for improvements, please check the extension's [GitHub repository](https://github.com/sarvalabs/vscode-coco) for issue tracking.
 You can open a new issue to report problems or submit feature requests.

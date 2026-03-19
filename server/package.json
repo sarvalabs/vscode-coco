@@ -1,7 +1,7 @@
 {
 	"name": "cocolang-lsp-server",
-	"displayName": "Cocolang LSP Server",
-	"description": "Syntax Highlighting for Cocolang on Visual Studio Code",
+	"displayName": "Coco Programing Language LSP Server",
+	"description": "Language support for Coco Programing Language on Visual Studio Code",
 	"version": "0.3.0",
 	"license": "MIT",
 	"publisher": "sarvalabs",
