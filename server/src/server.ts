@@ -839,7 +839,7 @@ const buildStateIndex = (text: string): StateIndex => {
 	const actorFields = new Set<string>();
 
 	for (const line of lines) {
-		const cocoMatch = line.match(/^\s*coco\s+([A-Za-z_][A-Za-z0-9_]*)/);
+		const cocoMatch = line.match(/^\s*coco\s+(?:asset\s+)?([A-Za-z_][A-Za-z0-9_]*)/);
 		if (cocoMatch) {
 			moduleName = cocoMatch[1];
 			break;
@@ -1168,7 +1168,7 @@ const getCocoModuleName = (text: string): string | null => {
 		if (trimmed.startsWith("//")) {
 			continue;
 		}
-		const match = trimmed.match(/^coco\s+([A-Za-z_][A-Za-z0-9_]*)\b/);
+		const match = trimmed.match(/^coco\s+(?:asset\s+)?([A-Za-z_][A-Za-z0-9_]*)\b/);
 		return match ? match[1] : null;
 	}
 	return null;
@@ -2702,6 +2702,9 @@ const cocoKeywords = new Set<string>([
 	"len",
 	"join",
 	"remove",
+	"append",
+	"popend",
+	"merge",
 	"emit",
 	"true",
 	"false",

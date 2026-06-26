@@ -255,7 +255,7 @@
                 {
                     "comment": "Action Keywords",
                     "name": "keyword.action.coco",
-                    "match": "\\b(observe|transfer|disperse|gather|generate|sweep|payer)\\b"
+                    "match": "\\b(observe|transfer|disperse|gather|generate|sweep|payer|append|popend|merge)\\b"
                 },
                 {
                     "comment": "Exception Handling",
