@@ -126,7 +126,7 @@ async function validateTextDocument(textDocument: TextDocument): Promise<void> {
 	checkNames(text, diagnostics);
 	checkTypeLiteralProperties(text, classIndex, eventIndex, diagnostics);
 	checkUndefinedVariables(text, classIndex, eventIndex, interfaceIndex, stateIndex, diagnostics);
-	checkStateFieldReferences(text, stateIndex, interfaceStateIndex, diagnostics);
+	checkStateFieldReferences(text, stateIndex, interfaceStateIndex, classIndex, diagnostics);
 	checkFieldAccess(text, classIndex, diagnostics);
 	checkFStringChunks(text, classIndex, diagnostics);
 	checkStandardFunctionTypes(text, classIndex, diagnostics);
@@ -214,7 +214,7 @@ connection.onDefinition(async (params: TextDocumentPositionParams) => {
 
 	const callArgument = getCallArgumentAtPosition(document, params.position);
 	if (callArgument) {
-	const callee = moduleSymbols.callables.callables.get(callArgument.callee);
+		const callee = moduleSymbols.callables.callables.get(callArgument.callee);
 		const paramDefinition = callee?.params.get(callArgument.argument);
 		if (paramDefinition) {
 			return paramDefinition;
@@ -541,6 +541,16 @@ type ModuleSymbols = {
 	eventIndex: LocatedEventIndex;
 	interfaceIndex: LocatedInterfaceIndex;
 	callables: LocatedCallableIndex;
+};
+
+type Segment = { text: string; start: number; end: number };
+type StateRefParts = {
+	rootName: string;
+	actorRef: string;
+	fieldName: string;
+	rootStart: number;
+	actorStart: number;
+	fieldStart: number;
 };
 
 const buildInterfaceIndex = (text: string): InterfaceIndex => {
@@ -2534,34 +2544,110 @@ const extractMutateObserveInfo = (
 	targets: Array<{ name: string; start: number; end: number }>;
 	stateRef: string | null;
 	stateRange: { start: number; end: number } | null;
+	payerRef: string | null;
+	payerRange: { start: number; end: number } | null;
 } => {
-	const match = line.match(/^\s*(mutate|observe)\s+(.+?)\s*(<-|->)\s*([^:]+?)\s*:?\s*(?:\/\/.*)?$/);
-	if (!match) {
-		return { verb: null, targets: [], stateRef: null, stateRange: null };
+	const verbMatch = line.match(/^\s*(mutate|observe)\b/);
+	if (!verbMatch) {
+		return emptyMutateObserveInfo();
 	}
 
-	const verb = match[1] === "mutate" ? "mutate" : "observe";
-	const targetsSegment = match[2];
-	const stateRef = match[4].trim();
-	const matchIndex = match.index ?? 0;
-	const matchText = match[0];
-	const verbEnd = matchText.indexOf(match[1]) + match[1].length;
-	const segmentOffset = matchText.indexOf(targetsSegment, verbEnd);
-	const segmentStart = segmentOffset >= 0 ? matchIndex + segmentOffset : -1;
-	const stateOffset = matchText.indexOf(stateRef, segmentOffset + targetsSegment.length);
-	const stateStart = stateOffset >= 0 ? matchIndex + stateOffset : line.indexOf(stateRef, segmentStart + targetsSegment.length);
-	const stateRange = stateStart >= 0 ? { start: stateStart, end: stateStart + stateRef.length } : null;
+	const verb = verbMatch[1] === "mutate" ? "mutate" : "observe";
+	const verbStart = line.indexOf(verbMatch[1], verbMatch.index ?? 0);
+	const verbEnd = verbStart + verbMatch[1].length;
+	const arrows = findMutateObserveArrows(line, verbEnd);
+	if (arrows.length === 0) {
+		return emptyMutateObserveInfo();
+	}
+	const targetArrow = arrows[0];
+	const stateArrow = arrows[arrows.length - 1];
+
+	const targetsSegment = trimSegment(line, verbEnd, targetArrow.index);
+	let stateAndPayer = trimSegment(line, stateArrow.index + stateArrow.token.length, line.length);
+	if (stateAndPayer.text.endsWith(":")) {
+		stateAndPayer = trimSegment(line, stateAndPayer.start, stateAndPayer.end - 1);
+	}
+
+	let stateSegment = stateAndPayer;
+	let payerSegment: Segment | null = null;
+	const payerIndex = findTopLevelPayerIndex(stateAndPayer.text);
+	if (payerIndex >= 0) {
+		stateSegment = trimSegment(line, stateAndPayer.start, stateAndPayer.start + payerIndex);
+		payerSegment = trimSegment(line, stateAndPayer.start + payerIndex + "payer".length, stateAndPayer.end);
+	}
 
 	const targets: Array<{ name: string; start: number; end: number }> = [];
-	for (const identifier of getIdentifierCandidates(targetsSegment)) {
-		if (isMemberAccess(targetsSegment, identifier.start)) {
+	for (const identifier of getIdentifierCandidates(targetsSegment.text)) {
+		if (isMemberAccess(targetsSegment.text, identifier.start)) {
 			continue;
 		}
-		const start = segmentStart >= 0 ? segmentStart + identifier.start : identifier.start;
+		const start = targetsSegment.start + identifier.start;
 		targets.push({ name: identifier.name, start, end: start + identifier.name.length });
 	}
 
-	return { verb, targets, stateRef, stateRange };
+	const stateRef = stateSegment.text.length > 0 ? stateSegment.text : null;
+	const stateRange = stateRef ? { start: stateSegment.start, end: stateSegment.end } : null;
+	const payerRef = payerSegment && payerSegment.text.length > 0 ? payerSegment.text : null;
+	const payerRange = payerRef && payerSegment ? { start: payerSegment.start, end: payerSegment.end } : null;
+
+	return { verb, targets, stateRef, stateRange, payerRef, payerRange };
+};
+
+const emptyMutateObserveInfo = (): {
+	verb: null;
+	targets: Array<{ name: string; start: number; end: number }>;
+	stateRef: null;
+	stateRange: null;
+	payerRef: null;
+	payerRange: null;
+} => ({ verb: null, targets: [], stateRef: null, stateRange: null, payerRef: null, payerRange: null });
+
+const trimSegment = (line: string, start: number, end: number): Segment => {
+	let segmentStart = Math.max(0, start);
+	let segmentEnd = Math.max(segmentStart, end);
+	while (segmentStart < segmentEnd && /\s/.test(line[segmentStart])) {
+		segmentStart++;
+	}
+	while (segmentEnd > segmentStart && /\s/.test(line[segmentEnd - 1])) {
+		segmentEnd--;
+	}
+	return { text: line.slice(segmentStart, segmentEnd), start: segmentStart, end: segmentEnd };
+};
+
+const findMutateObserveArrows = (line: string, start: number): Array<{ index: number; token: "<-" | "->" }> => {
+	const results: Array<{ index: number; token: "<-" | "->" }> = [];
+	let depth = 0;
+	for (let i = start; i < line.length - 1; i++) {
+		const ch = line[i];
+		if (ch === "(" || ch === "[" || ch === "{") { depth++; }
+		if (ch === ")" || ch === "]" || ch === "}") { depth--; }
+		if (depth === 0) {
+			const token = line.slice(i, i + 2);
+			if (token === "<-" || token === "->") {
+				results.push({ index: i, token });
+				i++;
+			}
+		}
+	}
+	return results;
+};
+
+const findTopLevelPayerIndex = (text: string): number => {
+	let depth = 0;
+	for (let i = 0; i < text.length; i++) {
+		const ch = text[i];
+		if (ch === "(" || ch === "[" || ch === "{") { depth++; continue; }
+		if (ch === ")" || ch === "]" || ch === "}") { depth--; continue; }
+		if (depth !== 0 || !text.startsWith("payer", i)) {
+			continue;
+		}
+		const before = i > 0 ? text[i - 1] : "";
+		const after = i + "payer".length < text.length ? text[i + "payer".length] : "";
+		if (/\s/.test(before) && /\s/.test(after)) {
+			return i;
+		}
+	}
+	return -1;
 };
 
 const cocoKeywords = new Set<string>([
@@ -2578,6 +2664,7 @@ const cocoKeywords = new Set<string>([
 	"from",
 	"in",
 	"observe",
+	"payer",
 	"transfer",
 	"disperse",
 	"gather",
@@ -2621,6 +2708,8 @@ const cocoKeywords = new Set<string>([
 	"self",
 	"Sender",
 	"Receiver",
+	"Logic",
+	"Actor",
 	"State",
 	"Builtins",
 	"Invocation",
@@ -2639,30 +2728,30 @@ const cocoKeywords = new Set<string>([
 ]);
 
 const ASSET_METHODS = new Map<string, { args: string[]; returns: string[] }>([
-	["Transfer",      { args: ["token_id", "beneficiary", "amount"], returns: [] }],
-	["TransferFrom",  { args: ["token_id", "benefactor", "beneficiary", "amount"], returns: [] }],
-	["Mint",          { args: ["token_id", "beneficiary", "amount"], returns: [] }],
+	["Transfer", { args: ["token_id", "beneficiary", "amount"], returns: [] }],
+	["TransferFrom", { args: ["token_id", "benefactor", "beneficiary", "amount"], returns: [] }],
+	["Mint", { args: ["token_id", "beneficiary", "amount"], returns: [] }],
 	["MintWithMetadata", { args: ["token_id", "beneficiary", "amount", "static_metadata"], returns: [] }],
-	["Burn",          { args: ["token_id", "amount"], returns: [] }],
-	["Approve",       { args: ["token_id", "beneficiary", "amount", "expires_at"], returns: [] }],
-	["Revoke",        { args: ["token_id", "beneficiary"], returns: [] }],
-	["Lockup",        { args: ["token_id", "beneficiary", "amount"], returns: [] }],
-	["Release",       { args: ["token_id", "benefactor", "beneficiary", "amount"], returns: [] }],
-	["Symbol",        { args: [], returns: ["symbol"] }],
-	["BalanceOf",     { args: ["token_id", "address"], returns: ["balance"] }],
-	["Creator",       { args: [], returns: ["creator"] }],
-	["Manager",       { args: [], returns: ["manager"] }],
-	["Decimals",      { args: [], returns: ["decimals"] }],
-	["MaxSupply",     { args: [], returns: ["max_supply"] }],
+	["Burn", { args: ["token_id", "amount"], returns: [] }],
+	["Approve", { args: ["token_id", "beneficiary", "amount", "expires_at"], returns: [] }],
+	["Revoke", { args: ["token_id", "beneficiary"], returns: [] }],
+	["Lockup", { args: ["token_id", "beneficiary", "amount"], returns: [] }],
+	["Release", { args: ["token_id", "benefactor", "beneficiary", "amount"], returns: [] }],
+	["Symbol", { args: [], returns: ["symbol"] }],
+	["BalanceOf", { args: ["token_id", "address"], returns: ["balance"] }],
+	["Creator", { args: [], returns: ["creator"] }],
+	["Manager", { args: [], returns: ["manager"] }],
+	["Decimals", { args: [], returns: ["decimals"] }],
+	["MaxSupply", { args: [], returns: ["max_supply"] }],
 	["CirculatingSupply", { args: [], returns: ["circulating_supply"] }],
-	["EnableEvents",  { args: [], returns: ["enable_events"] }],
-	["SetStaticMetadata",  { args: ["key", "value"], returns: [] }],
+	["EnableEvents", { args: [], returns: ["enable_events"] }],
+	["SetStaticMetadata", { args: ["key", "value"], returns: [] }],
 	["SetDynamicMetadata", { args: ["key", "value"], returns: [] }],
-	["GetStaticMetadata",  { args: ["key"], returns: ["value"] }],
+	["GetStaticMetadata", { args: ["key"], returns: ["value"] }],
 	["GetDynamicMetadata", { args: ["key"], returns: ["value"] }],
-	["SetStaticTokenMetadata",  { args: ["token_id", "key", "value"], returns: [] }],
+	["SetStaticTokenMetadata", { args: ["token_id", "key", "value"], returns: [] }],
 	["SetDynamicTokenMetadata", { args: ["token_id", "key", "value"], returns: [] }],
-	["GetStaticTokenMetadata",  { args: ["token_id", "key"], returns: ["value"] }],
+	["GetStaticTokenMetadata", { args: ["token_id", "key"], returns: ["value"] }],
 	["GetDynamicTokenMetadata", { args: ["token_id", "key"], returns: ["value"] }],
 	["Define", { args: ["symbol", "decimals", "manager", "creator", "max_supply", "enable_events"], returns: [] }],
 ]);
@@ -3192,6 +3281,7 @@ const checkStateFieldReferences = (
 	text: string,
 	stateIndex: StateIndex,
 	interfaceStateIndex: InterfaceStateIndex,
+	classIndex: ClassIndex,
 	diagnostics: Diagnostic[]
 ): void => {
 	const lines = text.split(/\r?\n/);
@@ -3206,44 +3296,42 @@ const checkStateFieldReferences = (
 			continue;
 		}
 
-		const stateRefs = info.stateRef.split(",").map(s => s.trim()).filter(s => s.length > 0);
+		const stateRefs = splitTopLevelSegments(info.stateRef, ",");
 		const baseStart = info.stateRange?.start ?? scanLine.indexOf(info.stateRef);
-		let refSearchStart = baseStart;
 
 		for (const ref of stateRefs) {
-			const refStart = scanLine.indexOf(ref, refSearchStart);
-			refSearchStart = refStart >= 0 ? refStart + ref.length : refSearchStart;
-
-			// Skip complex expressions like Actor(Identifier(addr)).field
-			if (ref.includes("(")) {
-				continue;
-			}
-
-			const parts = ref.split(".");
-			if (parts.length !== 3) {
+			const refStart = baseStart >= 0 ? baseStart + ref.start : -1;
+			const parsedRef = parseStateFieldRef(ref.text);
+			if (!parsedRef) {
 				if (refStart >= 0) {
 					diagnostics.push({
 						severity: DiagnosticSeverity.Error,
 						range: {
 							start: { line: lineIndex, character: refStart },
-							end: { line: lineIndex, character: refStart + ref.length }
+							end: { line: lineIndex, character: refStart + ref.text.length }
 						},
-						message: `State field identifier needs three elements`,
+						message: `State field identifier must be <logic>.<Logic|Sender|Actor(Identifier expression)>.<field>`,
 						source: 'ex'
 					});
 				}
 				continue;
 			}
 
-			const [rootName, actorName, fieldName] = parts;
+			const identityError = validateStateIdentity(parsedRef.actorRef, lineIndex, refStart + parsedRef.actorStart, text, callableIndex, classIndex);
+			if (identityError) {
+				diagnostics.push(identityError);
+				continue;
+			}
+
+			const { rootName, actorRef, fieldName } = parsedRef;
 			const start = refStart >= 0 ? refStart : baseStart;
 
 			if (stateIndex.moduleName && rootName === stateIndex.moduleName) {
-				const isLogic = actorName === "Logic";
+				const isLogic = actorRef === "Logic";
 				const fields = isLogic ? stateIndex.logicFields : stateIndex.actorFields;
 				if (!fields.has(fieldName)) {
 					if (start >= 0) {
-						const fieldStart = start + rootName.length + actorName.length + 2;
+						const fieldStart = start + parsedRef.fieldStart;
 						diagnostics.push({
 							severity: DiagnosticSeverity.Error,
 							range: {
@@ -3274,11 +3362,11 @@ const checkStateFieldReferences = (
 				continue;
 			}
 
-			const isLogic = actorName === "Logic";
+			const isLogic = actorRef === "Logic";
 			const fields = isLogic ? interfaceState.logicFields : interfaceState.actorFields;
 			if (!fields.has(fieldName)) {
 				if (start >= 0) {
-					const fieldStart = start + rootName.length + actorName.length + 2;
+					const fieldStart = start + parsedRef.fieldStart;
 					diagnostics.push({
 						severity: DiagnosticSeverity.Error,
 						range: {
@@ -3306,7 +3394,108 @@ const checkStateFieldReferences = (
 				}
 			}
 		}
+
+		if (info.payerRef) {
+			const payerStart = info.payerRange?.start ?? scanLine.indexOf(info.payerRef);
+			const payerError = validateStateIdentity(info.payerRef, lineIndex, payerStart, text, callableIndex, classIndex);
+			if (payerError) {
+				diagnostics.push(payerError);
+			}
+		}
 	}
+};
+
+const splitTopLevelSegments = (text: string, separator: "," | "."): Segment[] => {
+	const results: Segment[] = [];
+	let depth = 0;
+	let start = 0;
+	for (let i = 0; i <= text.length; i++) {
+		const ch = text[i];
+		if (ch === "(" || ch === "[" || ch === "{") { depth++; }
+		if (ch === ")" || ch === "]" || ch === "}") { depth--; }
+		const isEnd = i === text.length || (ch === separator && depth === 0);
+		if (!isEnd) {
+			continue;
+		}
+		const segment = trimSegment(text, start, i);
+		if (segment.text.length > 0) {
+			results.push(segment);
+		}
+		start = i + 1;
+	}
+	return results;
+};
+
+const parseStateFieldRef = (ref: string): StateRefParts | null => {
+	const parts = splitTopLevelSegments(ref, ".");
+	if (parts.length !== 3) {
+		return null;
+	}
+	const [root, actor, field] = parts;
+	if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(root.text) || !/^[A-Za-z_][A-Za-z0-9_]*$/.test(field.text)) {
+		return null;
+	}
+	if (!isValidStateIdentitySyntax(actor.text)) {
+		return null;
+	}
+	return {
+		rootName: root.text,
+		actorRef: actor.text,
+		fieldName: field.text,
+		rootStart: root.start,
+		actorStart: actor.start,
+		fieldStart: field.start
+	};
+};
+
+const isValidStateIdentitySyntax = (value: string): boolean => {
+	if (value === "Logic" || value === "Sender") {
+		return true;
+	}
+	return /^Actor\s*\(.+\)$/.test(value);
+};
+
+const validateStateIdentity = (
+	value: string,
+	lineIndex: number,
+	start: number,
+	text: string,
+	callableIndex: CallableIndex,
+	classIndex: ClassIndex
+): Diagnostic | null => {
+	if (value === "Logic" || value === "Sender") {
+		return null;
+	}
+
+	const actorMatch = value.match(/^Actor\s*\((.*)\)$/);
+	if (!actorMatch || actorMatch[1].trim().length === 0) {
+		return {
+			severity: DiagnosticSeverity.Error,
+			range: {
+				start: { line: lineIndex, character: start },
+				end: { line: lineIndex, character: start + value.length }
+			},
+			message: `Actor must be Logic, Sender, or Actor(Identifier expression)`,
+			source: 'ex'
+		};
+	}
+
+	const expr = actorMatch[1].trim();
+	const exprOffset = value.indexOf(actorMatch[1]) + actorMatch[1].indexOf(expr);
+	const exprType = inferExpressionType(expr, lineIndex, text, callableIndex, classIndex);
+	if (exprType && exprType.typeName !== "Identifier") {
+		return {
+			severity: DiagnosticSeverity.Error,
+			range: {
+				start: { line: lineIndex, character: start + exprOffset },
+				end: { line: lineIndex, character: start + exprOffset + expr.length }
+			},
+			message: `Actor argument must be an Identifier expression`,
+			source: 'ex'
+		};
+	}
+
+	return null;
 };
 
 const resolveVariableArrayKind = (
@@ -3582,7 +3771,7 @@ const checkArrayFunctionTypes = (
 const TYPECAST_ALLOWED = new Map<string, Set<string>>([
 	["Bool", new Set(["Bool", "String", "Bytes", "U64", "I64", "U256", "Identifier"])],
 	["String", new Set(["String", "Bytes", "U64", "U256", "I64", "Identifier"])],
-	["Identifier", new Set(["String", "Bytes", "U256", "Identifier", "Invocation"])],
+	["Identifier", new Set(["String", "Bytes", "U64", "I64", "U256", "Identifier", "Invocation"])],
 	["U64", new Set(["U64", "Bool", "Bytes", "String", "I64", "U256"])],
 	["I64", new Set(["I64", "Bool", "Bytes", "String", "U64", "U256"])],
 	["U256", new Set(["U256", "Bool", "Bytes", "String", "U64", "I64"])],
@@ -3701,6 +3890,14 @@ const inferExpressionType = (
 
 	if (trimmed === "true" || trimmed === "false") {
 		return { typeName: "Bool", isCollection: false };
+	}
+
+	if (/^\d+$/.test(trimmed)) {
+		return { typeName: "U64", isCollection: false };
+	}
+
+	if (/^"[^"]*"$/.test(trimmed) || /^'[^']*'$/.test(trimmed)) {
+		return { typeName: "String", isCollection: false };
 	}
 
 	// Known typecast call → return type

@@ -255,7 +255,7 @@
                 {
                     "comment": "Action Keywords",
                     "name": "keyword.action.coco",
-                    "match": "\\b(observe|transfer|disperse|gather|generate|sweep)\\b"
+                    "match": "\\b(observe|transfer|disperse|gather|generate|sweep|payer)\\b"
                 },
                 {
                     "comment": "Exception Handling",
@@ -416,7 +416,7 @@
             "patterns": [
                 {
                     "comment": "Open/Closed State Access Statement",
-                    "match": "\\b(mutate|observe)\\b|(<-|->)\\s*|(State|Sender|Receiver)?\\.([A-Za-z_][A-Za-z0-9_]*)\\s*",
+                    "match": "\\b(mutate|observe|payer)\\b|(<-|->)\\s*|(Logic|Sender|Actor|State|Receiver)?\\.([A-Za-z_][A-Za-z0-9_]*)\\s*",
                     "captures": {
                         "1": {
                             "name": "keyword.state.coco"

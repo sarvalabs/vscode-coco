@@ -129,6 +129,11 @@ export const completionItems = (): CompletionItem[] => {
 			label: 'asset',
 			kind: CompletionItemKind.Text,
 			data: 25
+		},
+		{
+			label: 'payer',
+			kind: CompletionItemKind.Text,
+			data: 26
 		}
 	]
 }
@@ -234,10 +239,13 @@ export const completionDetails = (item: CompletionItem): CompletionItem => {
 			item.detail = 'asset declaration';
 			item.documentation = 'Asset is a qualifier of the coco file to denote an asset logic or a section of an interface that lists endpoints in an asset logic.';
 			break;
+		case 26:
+			item.detail = 'mutation payer';
+			item.documentation = 'Payer selects which actor pays for storage changes in a mutate statement.';
+			break;
 		default:
 			break;
 	}
 
 	return item;
 }
-
