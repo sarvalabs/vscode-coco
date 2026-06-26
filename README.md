@@ -12,7 +12,8 @@
 The VS Code Coco Programing Language extension provides language support for the [Coco programming language](http://cocolang.dev), including syntax highlighting, real-time error diagnostics, and Go to Definition.
 
 ### Compatibility 
-- v0.3.0 or greater is required for `cocolang@v0.7.0` and above.
+- v0.3.1 or greater is required for `cocolang@v0.9.0` and above.
+- v0.3.1 is compatible with earler Coco compiler versions.
 
 ### Install from the Extension Marketplace
 This extension can be installed from the Visual Studio Code Extension Marketplace [here][marketplace].
