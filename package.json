@@ -1,9 +1,9 @@
 {
     "name": "cocolang",
-    "displayName": "Coco Programing Language",
+    "displayName": "Coco Programming Language",
     "icon": "icons/coco.png",
-    "description": "Language support for Coco Programing Language on Visual Studio Code",
-    "version": "0.3.1",
+    "description": "Language support for the Coco Programming Language in Visual Studio Code",
+    "version": "0.4.0",
     "license": "MIT",
     "publisher": "sarvalabs",
     "author": {
@@ -17,13 +17,15 @@
         "url": "https://github.com/sarvalabs/vscode-coco/issues"
     },
     "engines": {
-        "vscode": "^1.59.0",
-        "node": ">=12.0.0"
+        "vscode": "^1.91.0",
+        "node": ">=20.0.0"
     },
     "activationEvents": [
-        "onLanguage:coco"
+        "onLanguage:coco",
+        "onLanguage:coco_nut",
+        "onLanguage:cocolab"
     ],
-    "main": "./client/out/extension",
+    "main": "./dist/extension.js",
     "categories": [
         "Programming Languages"
     ],
@@ -56,7 +58,26 @@
                 "icon": {
                     "light": "./icons/coco-grey.png",
                     "dark": "./icons/coco-grey.png"
-                }
+                },
+                "filenames": [
+                    "coco.nut"
+                ],
+                "configuration": "./languages/coconut-configuration.json"
+            },
+            {
+                "id": "cocolab",
+                "extensions": [
+                    ".lab"
+                ],
+                "aliases": [
+                    "Cocolab Script",
+                    "cocolab"
+                ],
+                "icon": {
+                    "light": "./icons/coco-grey.png",
+                    "dark": "./icons/coco-grey.png"
+                },
+                "configuration": "./languages/cocolab-configuration.json"
             }
         ],
         "grammars": [
@@ -68,27 +89,47 @@
             {
                 "language": "coco_nut",
                 "scopeName": "source.coconut",
-                "path": "./syntaxes/coco.tmLanguage.json"
+                "path": "./syntaxes/coconut.tmLanguage.json"
+            },
+            {
+                "language": "cocolab",
+                "scopeName": "source.cocolab",
+                "path": "./syntaxes/cocolab.tmLanguage.json"
             }
         ]
     },
     "scripts": {
-        "compile": "tsc -b",
-        "clean": "rm -rf ./dist/* && rm *.vsix",
+        "typecheck": "tsc -p tsconfig.json",
+        "typecheck:watch": "tsc -p tsconfig.json --watch",
+        "bundle": "node esbuild.mjs",
+        "compile": "npm run typecheck && npm run bundle",
+        "watch": "node esbuild.mjs --watch",
+        "lint": "eslint .",
+        "test": "node test/feature-check.mjs",
+        "test:compile": "node test/compile-check.mjs",
+        "test:scan": "node test/lsp-check.mjs",
+        "verify": "npm run typecheck && npm run lint && npm run bundle && npm test && npm run test:compile",
+        "clean": "rm -rf ./dist ./*.vsix",
         "package": "vsce package",
-        "vscode:prepublish": "npm run compile",
-        "watch": "tsc -b -w",
-        "lint": "eslint ./client/src ./server/src --ext .ts,.tsx",
-        "postinstall": "cd client && npm install && cd ../server && npm install && cd .."
+        "vscode:prepublish": "npm run typecheck && node esbuild.mjs --production"
     },
     "devDependencies": {
+        "@eslint/js": "^9.39.5",
+        "@types/node": "^24.0.0",
+        "@types/vscode": "^1.91.0",
         "@vscode/vsce": "^3.7.1",
-        "@types/mocha": "^9.1.0",
-        "@types/node": "^16.18.34",
-        "@typescript-eslint/eslint-plugin": "^5.54.0",
-        "@typescript-eslint/parser": "^5.54.0",
-        "eslint": "^8.35.0",
-        "mocha": "^9.2.1",
-        "typescript": "^5.1.3"
+        "esbuild": "^0.25.0",
+        "eslint": "^9.39.5",
+        "globals": "^17.11.0",
+        "typescript": "^5.9.0",
+        "typescript-eslint": "^8.67.0"
+    },
+    "dependencies": {
+        "vscode-languageclient": "^10.1.0",
+        "vscode-languageserver": "^10.0.0",
+        "vscode-languageserver-textdocument": "^1.0.12"
+    },
+    "overrides": {
+        "brace-expansion": "^1.1.18 || ^2.0.2 || ^5.0.1"
     }
 }

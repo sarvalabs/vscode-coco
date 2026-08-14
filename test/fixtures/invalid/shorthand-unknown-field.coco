@@ -1,0 +1,16 @@
+coco ShorthandUnknownField
+
+class Person:
+    field name String
+    field age U64
+
+state logic:
+    name String
+
+state actor:
+    tag String
+
+// EXPECT: field 'nickname' not found in Person
+endpoint pure A(n String) -> (p Person):
+    memory nickname = n
+    p = Person{nickname}

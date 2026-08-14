@@ -9,6 +9,11 @@ node_modules
 
 .DS_Store
 
-**/server/out
+# Bundler output
+dist
 
-**/client/out
+# TypeScript build metadata
+*.tsbuildinfo
+
+# GitKB — the knowledge base is synced with `git-kb push`, not with git
+.kb/

@@ -46,21 +46,6 @@ export const completionItems = (): CompletionItem[] => {
 			data: 8
 		},
 		{
-			label: 'persistent',
-			kind: CompletionItemKind.Text,
-			data: 9
-		},
-		{
-			label: 'ephemeral',
-			kind: CompletionItemKind.Text,
-			data: 10
-		},
-		{
-			label: 'readonly',
-			kind: CompletionItemKind.Text,
-			data: 11
-		},
-		{
 			label: 'class',
 			kind: CompletionItemKind.Text,
 			data: 12
@@ -134,9 +119,64 @@ export const completionItems = (): CompletionItem[] => {
 			label: 'payer',
 			kind: CompletionItemKind.Text,
 			data: 26
+		},
+		{
+			label: 'pure',
+			kind: CompletionItemKind.Text,
+			data: 27
+		},
+		{
+			label: 'gather',
+			kind: CompletionItemKind.Text,
+			data: 28
+		},
+		{
+			label: 'disperse',
+			kind: CompletionItemKind.Text,
+			data: 29
+		},
+		{
+			label: 'yield',
+			kind: CompletionItemKind.Text,
+			data: 30
+		},
+		{
+			label: 'throw',
+			kind: CompletionItemKind.Text,
+			data: 31
+		},
+		{
+			label: 'Sender',
+			kind: CompletionItemKind.Variable,
+			data: 32
+		},
+		{
+			label: 'Logic',
+			kind: CompletionItemKind.Variable,
+			data: 33
+		},
+		{
+			label: 'Actor',
+			kind: CompletionItemKind.Variable,
+			data: 34
+		},
+		{
+			label: 'Environment',
+			kind: CompletionItemKind.Variable,
+			data: 35
+		},
+		{
+			label: 'Invocation',
+			kind: CompletionItemKind.Variable,
+			data: 36
+		},
+		{
+			label: 'Builtins',
+			kind: CompletionItemKind.Variable,
+			data: 37
 		}
-	]
-}
+	];
+};
 
 export const completionDetails = (item: CompletionItem): CompletionItem => {
 	switch (item.data) {
@@ -154,15 +194,15 @@ export const completionDetails = (item: CompletionItem): CompletionItem => {
 			break;
 		case 4:
 			item.detail = 'deployer declaration';
-			item.documentation = 'Deployers are endpoints used to initialize a persistent state and can be thought of as the constructor of the module.';
+			item.documentation = 'Deployers run once, when the logic is deployed, and initialize logic state — the constructor of the module. They take no state qualifier.';
 			break;
 		case 5:
 			item.detail = 'invokable declaration';
-			item.documentation = 'Invokables are endpoints that can only be invoked externally by a single participant. ';
+			item.documentation = 'Invokables are endpoints called externally by a single participant. This is the default lifecycle, so the keyword is usually omitted.';
 			break;
 		case 6:
 			item.detail = 'enlister declaration';
-			item.documentation = 'Enlisters are endpoints that can only be invoked externally and affect the ephemeral state';
+			item.documentation = 'Enlisters run once per actor, when a participant joins the logic, and initialize that actor\'s state. They take no state qualifier.';
 			break;
 		case 7:
 			item.detail = 'endpoint declaration';
@@ -170,19 +210,7 @@ export const completionDetails = (item: CompletionItem): CompletionItem => {
 			break;
 		case 8:
 			item.detail = 'state declaration';
-			item.documentation = 'Coco supports persistent and ephemeral state types.';
-			break;
-		case 9:
-			item.detail = 'persistent state';
-			item.documentation = 'Persistent state is the state of the module.';
-			break;
-		case 10:
-			item.detail = 'ephemeral state';
-			item.documentation = 'Ephemeral state refers to the state of the participant.';
-			break;
-		case 11:
-			item.detail = 'readonly state';
-			item.documentation = 'Readonly state refers to functions with no state modifications.';
+			item.documentation = 'Coco has two state blocks: `state logic:` for the logic\'s own state, and `state actor:` for per-participant state.';
 			break;
 		case 12:
 			item.detail = 'class declaration';
@@ -206,7 +234,8 @@ export const completionDetails = (item: CompletionItem): CompletionItem => {
 			break;
 		case 17:
 			item.detail = 'const declaration';
-			item.documentation = 'The const keyword is used to declare named constant values of a specific type in Coco'
+			item.documentation = 'The const keyword is used to declare named constant values of a specific type in Coco';
+			break;
 		case 18:
 			item.detail = 'logic state';
 			item.documentation = 'Logic state is the state of the module.';
@@ -221,7 +250,7 @@ export const completionDetails = (item: CompletionItem): CompletionItem => {
 			break;
 		case 21:
 			item.detail = 'static qualifier';
-			item.documentation = 'Endpoint qualifier static (default if it\'s missing) assures endpoint is not modifying logic or actors state';
+			item.documentation = 'Endpoint qualifier static means the endpoint reads state with observe but never mutates it. It must be written explicitly — an omitted qualifier means pure.';
 			break;
 		case 22:
 			item.detail = 'emit event';
@@ -241,11 +270,55 @@ export const completionDetails = (item: CompletionItem): CompletionItem => {
 			break;
 		case 26:
 			item.detail = 'mutation payer';
-			item.documentation = 'Payer selects which actor pays for storage changes in a mutate statement.';
+			item.documentation = 'Payer selects which actor pays for storage changes in a mutate statement. Logic-state mutate only, and requires a PISA 0.8.0 target: mutate v -> M.Logic.f payer Logic | Sender | Actor(id).';
+			break;
+		case 27:
+			item.detail = 'pure qualifier';
+			item.documentation = 'Endpoint qualifier pure means the callable touches no state at all. Omitting the qualifier means pure, not static — an endpoint that observes state must say static explicitly.';
+			break;
+		case 28:
+			item.detail = 'gather action';
+			item.documentation = 'Gather reads a complete map, array or class out of atomic storage into a memory variable, inside an observe block.';
+			break;
+		case 29:
+			item.detail = 'disperse action';
+			item.documentation = 'Disperse writes a complete map, array or class from memory back into atomic storage, inside a mutate block.';
+			break;
+		case 30:
+			item.detail = 'yield statement';
+			item.documentation = 'Yield assigns a value to a named return variable: yield out expression.';
+			break;
+		case 31:
+			item.detail = 'throw statement';
+			item.documentation = 'Throw aborts the interaction with an error message and reverts every state change made so far.';
+			break;
+		case 32:
+			item.detail = 'Sender superglobal';
+			item.documentation = 'The Identifier of the original interaction sender. Stays constant across cross-logic calls — use Invocation.Caller() for the immediate caller.';
+			break;
+		case 33:
+			item.detail = 'Logic superglobal';
+			item.documentation = 'The logic itself: the state path Module.Logic.field, and the storage payer in mutate ... payer Logic.';
+			break;
+		case 34:
+			item.detail = 'Actor superglobal';
+			item.documentation = 'A participant: the state path Module.Actor(id).field, the payer Actor(id) clause, and the actor methods Exists(), HasSigned() and Param(name) on PISA 0.8.0.';
+			break;
+		case 35:
+			item.detail = 'Environment superglobal';
+			item.documentation = 'Runtime context: Timestamp(), EffortCapacity(), EffortAvailable(), and StorageResult(account, payer) on PISA 0.8.0.';
+			break;
+		case 36:
+			item.detail = 'Invocation superglobal';
+			item.documentation = 'Current invocation: ID() and Caller(). Identifier(Invocation) converts it to an Identifier.';
+			break;
+		case 37:
+			item.detail = 'Builtins superglobal';
+			item.documentation = 'Cryptographic builtins: Sha256(), Keccak(), Blake2b() and Sigverify().';
 			break;
 		default:
 			break;
 	}
 
 	return item;
-}
+};

@@ -1,0 +1,15 @@
+coco ActorUnknownMethod
+
+class Person:
+    field name String
+    field age U64
+
+state logic:
+    name String
+
+state actor:
+    tag String
+
+// EXPECT: 'Unknown' is not defined for type identifier
+endpoint pure E(id Identifier) -> (b Bool):
+    b = Actor(id).Unknown()

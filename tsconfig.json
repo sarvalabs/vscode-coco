@@ -1,21 +1,17 @@
 {
+	// Type checking only — esbuild produces what actually ships (see esbuild.mjs).
+	// Both halves target the Node runtime VS Code embeds.
 	"compilerOptions": {
-		"module": "commonjs",
-		"target": "es2020",
-		"lib": ["es2020", "DOM"],
-		"outDir": "out",
-		"rootDir": "src",
+		"module": "node16",
+		"moduleResolution": "node16",
+		"target": "es2022",
+		"lib": ["es2022"],
+		"strict": true,
+		"noEmit": true,
+		"skipLibCheck": true,
+		"forceConsistentCasingInFileNames": true,
 		"sourceMap": true
 	},
-	"include": [
-		"src"
-	],
-	"exclude": [
-		"node_modules",
-		".vscode-test"
-	],
-	"references": [
-		{ "path": "./client" },
-		{ "path": "./server" }
-	]
+	"include": ["client/src", "server/src"],
+	"exclude": ["node_modules", "dist"]
 }

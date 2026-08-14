@@ -1,0 +1,91 @@
+// A pull-based token ledger: balances live in actor state, and value in flight
+// parks in logic state so no endpoint ever writes another actor's storage.
+// Every write is either the sender's own state or the logic's, which is what
+// PISA 0.8.0 allows without a storage_mutate grant.
+
+coco Token
+
+event Transferred:
+    topic from Identifier
+    field to Identifier
+    field amount U256
+
+state logic:
+    name     String
+    symbol   String
+    supply   U256
+    pending  Map[Identifier]U256
+
+state actor:
+    balance U256
+
+// The logic pays for the storage its own initialization consumes.
+endpoint deploy Init(name String, symbol String) -> (added U64, removed U64):
+    mutate name, symbol -> Token.Logic.name, Token.Logic.symbol payer Logic
+    mutate U256(0) -> Token.Logic.supply payer Logic
+    added, removed = Environment.StorageResult(Identifier(Token), Identifier(Token))
+
+endpoint enlist Register():
+    mutate U256(0) -> Token.Sender.balance
+
+function static RequireSupply(amount U256):
+    memory supply U256
+    observe supply <- Token.Logic.supply
+    if supply < amount:
+        throw "insufficient supply"
+
+endpoint dynamic Mint(amount U256) -> (balance U256):
+    mutate total <- Token.Logic.supply:
+        total += amount
+    mutate bal <- Token.Sender.balance:
+        bal += amount
+        balance = bal
+
+endpoint dynamic Burn(amount U256) -> (balance U256):
+    RequireSupply(amount: amount)
+    mutate bal <- Token.Sender.balance:
+        if bal < amount:
+            throw "insufficient balance"
+        bal -= amount
+        balance = bal
+    mutate total <- Token.Logic.supply:
+        total -= amount
+
+// The sender debits their own state and parks the amount in logic state.
+endpoint dynamic Send(to Identifier, amount U256):
+    mutate bal <- Token.Sender.balance:
+        if bal < amount:
+            throw "insufficient balance"
+        bal -= amount
+    mutate pending <- Token.Logic.pending:
+        if pending[to]?:
+            pending[to] = pending[to] + amount
+        else:
+            pending[to] = amount
+    emit Transferred{from: Sender, to: to, amount: amount}
+
+// The recipient clears their own entry and credits their own state.
+endpoint dynamic Claim() -> (claimed U256):
+    memory amount U256
+    mutate pending <- Token.Logic.pending:
+        if !pending[Sender]?:
+            throw "nothing to claim"
+        amount = pending[Sender]
+        pending[Sender] = U256(0)
+    mutate bal <- Token.Sender.balance:
+        bal += amount
+    claimed = amount
+
+endpoint static BalanceOf(account Identifier) -> (balance U256):
+    observe balance <- Token.Actor(account).balance
+
+endpoint static Info() -> (name String, symbol String, supply U256):
+    observe name, symbol <- Token.Logic.name, Token.Logic.symbol
+    observe supply <- Token.Logic.supply
+
+endpoint static PendingFor(account Identifier) -> (amount U256):
+    observe pending <- Token.Logic.pending:
+        if pending[account]?:
+            amount = pending[account]
+        else:
+            amount = U256(0)

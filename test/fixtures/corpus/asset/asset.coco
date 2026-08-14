@@ -1,0 +1,93 @@
+// A MAS0-shaped native asset logic. Every asset write is `dynamic` and every
+// asset read is `static`, which the compiler enforces exactly since 0.9.0 —
+// sources written for 0.8.2, where these carried no qualifier, no longer build.
+
+coco asset DemoAsset
+
+event AssetEvent:
+    topic operation String
+    field operator    Identifier
+    field benefactor  Identifier
+    field beneficiary Identifier
+    field amount      U256
+
+// An asset is brought into existence by Cocolab's `create` command, not from
+// Coco source — there is no `asset.Define`. The deploy endpoint only sets up
+// whatever logic state the asset wants alongside it.
+endpoint deploy Init():
+    pass
+
+// --- writes: dynamic ------------------------------------------------------
+
+endpoint dynamic Mint(beneficiary Identifier, amount U256):
+    if asset.EnableEvents():
+        emit AssetEvent{operation: "Mint", operator: Sender, benefactor: Sender,
+            beneficiary: beneficiary, amount: amount}
+    asset.Mint(token_id: 0, beneficiary: beneficiary, amount: amount)
+
+endpoint dynamic Burn(amount U256):
+    asset.Burn(token_id: 0, amount: amount)
+
+endpoint dynamic Transfer(beneficiary Identifier, amount U256):
+    if asset.EnableEvents():
+        emit AssetEvent{operation: "Transfer", operator: Sender, benefactor: Sender,
+            beneficiary: beneficiary, amount: amount}
+    asset.Transfer(token_id: 0, beneficiary: beneficiary, amount: amount)
+
+endpoint dynamic TransferFrom(benefactor Identifier, beneficiary Identifier, amount U256):
+    asset.TransferFrom(token_id: 0, benefactor: benefactor, beneficiary: beneficiary, amount: amount)
+
+endpoint dynamic Approve(beneficiary Identifier, amount U256, expires_at U64):
+    asset.Approve(token_id: 0, beneficiary: beneficiary, amount: amount, expires_at: expires_at)
+
+endpoint dynamic Revoke(beneficiary Identifier):
+    asset.Revoke(token_id: 0, beneficiary: beneficiary)
+
+endpoint dynamic Lockup(beneficiary Identifier, amount U256):
+    asset.Lockup(token_id: 0, beneficiary: beneficiary, amount: amount)
+
+endpoint dynamic Release(benefactor Identifier, beneficiary Identifier, amount U256):
+    asset.Release(token_id: 0, benefactor: benefactor, beneficiary: beneficiary, amount: amount)
+
+endpoint dynamic SetStaticMetadata(key String, value Bytes):
+    asset.SetStaticMetadata(key: key, value: value)
+
+endpoint dynamic SetDynamicMetadata(key String, value Bytes):
+    asset.SetDynamicMetadata(key: key, value: value)
+
+// --- reads: static --------------------------------------------------------
+
+endpoint static Symbol() -> (symbol String):
+    symbol = asset.Symbol()
+
+endpoint static Decimals() -> (decimals U64):
+    decimals = asset.Decimals()
+
+endpoint static Creator() -> (creator Identifier):
+    creator = asset.Creator()
+
+endpoint static Manager() -> (manager Identifier):
+    manager = asset.Manager()
+
+endpoint static MaxSupply() -> (max_supply U256):
+    max_supply = asset.MaxSupply()
+
+endpoint static CirculatingSupply() -> (circulating_supply U256):
+    circulating_supply = asset.CirculatingSupply()
+
+endpoint static BalanceOf(address Identifier) -> (balance U256):
+    balance = asset.BalanceOf(token_id: 0, address: address)
+
+endpoint static GetStaticMetadata(key String) -> (value Bytes):
+    value = asset.GetStaticMetadata(key: key)
+
+endpoint static GetDynamicMetadata(key String) -> (value Bytes):
+    value = asset.GetDynamicMetadata(key: key)
+
+// The requirement is the maximum over everything the body does, and it
+// propagates out of plain functions too.
+function static IsHolder(address Identifier) -> (holds Bool):
+    holds = asset.BalanceOf(token_id: 0, address: address) > U256(0)
+
+endpoint static HasBalance(address Identifier) -> (holds Bool):
+    holds = (holds) <- IsHolder(address: address)

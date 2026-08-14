@@ -1,0 +1,5 @@
+coco StorageResultBefore080
+
+// EXPECT: Environment.StorageResult() is not implemented in PISA v0.7.1, implemented in v0.8.0
+endpoint pure Cost() -> (a U64, r U64):
+    a, r = Environment.StorageResult(Sender, Sender)

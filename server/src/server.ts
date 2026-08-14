@@ -7,6 +7,7 @@ import {
 	InitializeParams,
 	DidChangeConfigurationNotification,
 	CompletionItem,
+	CompletionItemKind,
 	TextDocumentPositionParams,
 	TextDocumentSyncKind,
 	InitializeResult,
@@ -21,7 +22,6 @@ import * as fs from 'fs/promises';
 import { fileURLToPath, pathToFileURL } from 'url';
 import { completionItems, completionDetails } from './modules/completion';
 import { TextDocument } from 'vscode-languageserver-textdocument';
-import { checkMutation, checkNames, getCallableTypeMap, getCollections, statefulValidation } from './modules/validation';
 
 // Create a connection for the server, using Node's IPC as a transport.
 // Also include all preview / proposed LSP features.
@@ -32,7 +32,6 @@ const documents: TextDocuments<TextDocument> = new TextDocuments(TextDocument);
 
 let hasConfigurationCapability = false;
 let hasWorkspaceFolderCapability = false;
-let hasDiagnosticRelatedInformationCapability = false;
 
 connection.onInitialize((params: InitializeParams) => {
 	const capabilities = params.capabilities;
@@ -45,12 +44,6 @@ connection.onInitialize((params: InitializeParams) => {
 	hasWorkspaceFolderCapability = !!(
 		capabilities.workspace && !!capabilities.workspace.workspaceFolders
 	);
-	hasDiagnosticRelatedInformationCapability = !!(
-		capabilities.textDocument &&
-		capabilities.textDocument.publishDiagnostics &&
-		capabilities.textDocument.publishDiagnostics.relatedInformation
-	);
-
 	const result: InitializeResult = {
 		capabilities: {
 			textDocumentSync: TextDocumentSyncKind.Incremental,
@@ -88,8 +81,7 @@ connection.onInitialized(() => {
 });
 
 // Coco configuration settings to be implemented
-interface CocoSettings {
-}
+type CocoSettings = Record<string, never>;
 
 // Cache the settings of all open documents
 const documentSettings: Map<string, Thenable<CocoSettings>> = new Map();
@@ -111,8 +103,6 @@ async function validateTextDocument(textDocument: TextDocument): Promise<void> {
 
 	const text = textDocument.getText();
 	const diagnostics: Diagnostic[] = [];
-	const callableTypeMap = getCallableTypeMap(text);
-	const persistentCollections = getCollections(text);
 	const moduleContext = await buildModuleContext(textDocument.uri, text);
 	const analysisIndexes = buildModuleAnalysisIndexes(moduleContext);
 	const classIndex = analysisIndexes.classIndex;
@@ -121,18 +111,20 @@ async function validateTextDocument(textDocument: TextDocument): Promise<void> {
 	const interfaceStateIndex = analysisIndexes.interfaceStateIndex;
 	const stateIndex = analysisIndexes.stateIndex;
 
-	statefulValidation(text, diagnostics, callableTypeMap);
-	checkMutation(text, diagnostics, persistentCollections)
-	checkNames(text, diagnostics);
 	checkTypeLiteralProperties(text, classIndex, eventIndex, diagnostics);
 	checkUndefinedVariables(text, classIndex, eventIndex, interfaceIndex, stateIndex, diagnostics);
 	checkStateFieldReferences(text, stateIndex, interfaceStateIndex, classIndex, diagnostics);
+	checkPayerClauses(text, moduleContext.pisaVersion, diagnostics);
+	checkWholeStateWrites(text, stateIndex, classIndex, diagnostics);
 	checkFieldAccess(text, classIndex, diagnostics);
 	checkFStringChunks(text, classIndex, diagnostics);
 	checkStandardFunctionTypes(text, classIndex, diagnostics);
 	checkEmitTypes(text, classIndex, eventIndex, diagnostics);
 	checkArrayFunctionTypes(text, diagnostics);
 	checkAssetMethodCalls(text, diagnostics);
+	checkSuperglobalMethodCalls(text, moduleContext.pisaVersion, classIndex, diagnostics);
+	checkStateQualifiers(text, moduleContext.pisaVersion, interfaceStateIndex, diagnostics);
+	checkReservedWordNames(text, diagnostics);
 	const diagnosticSource = path.basename(new URL(textDocument.uri).pathname);
 	for (const diagnostic of diagnostics) {
 		diagnostic.source = diagnosticSource;
@@ -145,11 +137,23 @@ connection.onDidChangeWatchedFiles(_change => {
 	connection.console.log('We received an file change event');
 });
 
-// This handler provides the initial list of the completion items.
+// This handler provides the initial list of the completion items. When the
+// cursor sits just after a superglobal or the asset engine, the members of that
+// receiver are offered instead of the plain keyword list.
 connection.onCompletion(
-	(_textDocumentPosition: TextDocumentPositionParams): CompletionItem[] => {
-		// The pass parameter contains the position of the text document in
-		// which code complete got requested.
+	async (textDocumentPosition: TextDocumentPositionParams): Promise<CompletionItem[]> => {
+		const document = documents.get(textDocumentPosition.textDocument.uri);
+		if (document) {
+			const linePrefix = document.getText({
+				start: { line: textDocumentPosition.position.line, character: 0 },
+				end: textDocumentPosition.position
+			});
+			const moduleContext = await buildModuleContext(textDocumentPosition.textDocument.uri, document.getText());
+			const memberCompletions = buildMemberCompletions(linePrefix, moduleContext.pisaVersion);
+			if (memberCompletions) {
+				return memberCompletions;
+			}
+		}
 		return completionItems();
 	}
 );
@@ -182,10 +186,6 @@ connection.onDefinition(async (params: TextDocumentPositionParams) => {
 			const iface = interfaceIndex.interfaces.get(receiverType);
 			const ifaceMember = iface?.members.get(memberCall.member);
 			if (ifaceMember) {
-				const range = Range.create(
-					ifaceMember.range.start,
-					ifaceMember.range.end
-				);
 				return ifaceMember;
 			}
 
@@ -516,6 +516,10 @@ type StateIndex = {
 	moduleName: string | null;
 	logicFields: Set<string>;
 	actorFields: Set<string>;
+	// Declared type text per field, e.g. "Map[String]U64" — used to tell atomic
+	// storage (maps, arrays, classes) from scalars.
+	logicFieldTypes: Map<string, string>;
+	actorFieldTypes: Map<string, string>;
 };
 
 type InterfaceStateIndex = {
@@ -534,6 +538,61 @@ type LocatedCallableIndex = {
 type ModuleContext = {
 	moduleName: string | null;
 	files: Array<{ uri: string; text: string }>;
+	pisaVersion: PisaVersion;
+};
+
+// PisaVersion is the [target.pisa] version a module compiles against. Features
+// like `payer`, Environment.StorageResult and the actor methods only exist on
+// 0.8.0, while Environment.VolumeCapacity/VolumeAvailable only exist below it.
+type PisaVersion = "0.3.2" | "0.4.0" | "0.5.0" | "0.7.1" | "0.8.0";
+
+// DEFAULT_PISA_VERSION matches what `coco nut init` writes, and is what we
+// assume when no coco.nut sits next to the source file.
+const DEFAULT_PISA_VERSION: PisaVersion = "0.8.0";
+
+// PISA_VERSION_ALIASES maps every accepted coco.nut version string onto the
+// target it actually compiles to: 0.6.0 through 0.7.1 are one and the same.
+const PISA_VERSION_ALIASES = new Map<string, PisaVersion>([
+	["0.3.2", "0.3.2"],
+	["0.4.0", "0.4.0"],
+	["0.5.0", "0.5.0"],
+	["0.6.0", "0.7.1"],
+	["0.6.1", "0.7.1"],
+	["0.7.0", "0.7.1"],
+	["0.7.1", "0.7.1"],
+	["0.8.0", "0.8.0"]
+]);
+
+const PISA_VERSION_ORDER: PisaVersion[] = ["0.3.2", "0.4.0", "0.5.0", "0.7.1", "0.8.0"];
+
+const isPisaAtLeast = (version: PisaVersion, minimum: PisaVersion): boolean =>
+	PISA_VERSION_ORDER.indexOf(version) >= PISA_VERSION_ORDER.indexOf(minimum);
+
+const isPisaAfter = (version: PisaVersion, bound: PisaVersion): boolean =>
+	PISA_VERSION_ORDER.indexOf(version) > PISA_VERSION_ORDER.indexOf(bound);
+
+// parsePisaVersion pulls `version` out of the [target.pisa] table of a coco.nut
+// file. Hand-rolled rather than pulled from a TOML package: the server has no
+// runtime dependencies and this is the only TOML it ever reads.
+const parsePisaVersion = (nutText: string): PisaVersion | null => {
+	const lines = nutText.split(/\r?\n/);
+	let inTargetPisa = false;
+	for (const line of lines) {
+		const trimmed = line.replace(/#.*$/, "").trim();
+		const section = trimmed.match(/^\[([^\]]+)\]$/);
+		if (section) {
+			inTargetPisa = section[1].trim() === "target.pisa";
+			continue;
+		}
+		if (!inTargetPisa) {
+			continue;
+		}
+		const value = trimmed.match(/^version\s*=\s*["']([^"']+)["']/);
+		if (value) {
+			return PISA_VERSION_ALIASES.get(value[1]) ?? null;
+		}
+	}
+	return null;
 };
 
 type ModuleSymbols = {
@@ -837,6 +896,8 @@ const buildStateIndex = (text: string): StateIndex => {
 	let moduleName: string | null = null;
 	const logicFields = new Set<string>();
 	const actorFields = new Set<string>();
+	const logicFieldTypes = new Map<string, string>();
+	const actorFieldTypes = new Map<string, string>();
 
 	for (const line of lines) {
 		const cocoMatch = line.match(/^\s*coco\s+(?:asset\s+)?([A-Za-z_][A-Za-z0-9_]*)/);
@@ -869,12 +930,12 @@ const buildStateIndex = (text: string): StateIndex => {
 			continue;
 		}
 
-		const stateMatch = line.match(/^\s*state\s+(logic|actor|persistent|ephemeral|readonly)\s*:\s*$/);
+		const stateMatch = line.match(/^\s*state\s+(logic|actor)\s*:\s*$/);
 		if (stateMatch) {
 			inState = true;
 			stateIndent = lineIndent;
 			const qual = stateMatch[1];
-			stateQualifier = (qual === "actor" || qual === "ephemeral") ? "actor" : "logic";
+			stateQualifier = qual === "actor" ? "actor" : "logic";
 			continue;
 		}
 
@@ -887,18 +948,21 @@ const buildStateIndex = (text: string): StateIndex => {
 			continue;
 		}
 
-		const fieldMatch = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\b/);
+		const fieldMatch = stripCommentsAndStrings(line).match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*(.*)$/);
 		if (fieldMatch) {
 			const fieldName = fieldMatch[1];
+			const fieldType = fieldMatch[2].trim();
 			if (stateQualifier === "logic") {
 				logicFields.add(fieldName);
+				logicFieldTypes.set(fieldName, fieldType);
 			} else {
 				actorFields.add(fieldName);
+				actorFieldTypes.set(fieldName, fieldType);
 			}
 		}
 	}
 
-	return { moduleName, logicFields, actorFields };
+	return { moduleName, logicFields, actorFields, logicFieldTypes, actorFieldTypes };
 };
 
 const buildInterfaceStateIndex = (text: string): InterfaceStateIndex => {
@@ -940,12 +1004,12 @@ const buildInterfaceStateIndex = (text: string): InterfaceStateIndex => {
 			continue;
 		}
 
-		const stateMatch = line.match(/^\s*state\s+(logic|actor|persistent|ephemeral|readonly)\s*:\s*$/);
+		const stateMatch = line.match(/^\s*state\s+(logic|actor)\s*:\s*$/);
 		if (stateMatch) {
 			inState = true;
 			stateIndent = lineIndent;
 			const qual = stateMatch[1];
-			stateQualifier = (qual === "actor" || qual === "ephemeral") ? "actor" : "logic";
+			stateQualifier = qual === "actor" ? "actor" : "logic";
 			continue;
 		}
 
@@ -978,7 +1042,7 @@ const buildInterfaceStateIndex = (text: string): InterfaceStateIndex => {
 const buildModuleContext = async (uri: string, text: string): Promise<ModuleContext> => {
 	const moduleName = getCocoModuleName(text);
 	if (!moduleName) {
-		return { moduleName: null, files: [{ uri, text }] };
+		return { moduleName: null, files: [{ uri, text }], pisaVersion: DEFAULT_PISA_VERSION };
 	}
 
 	const dir = path.dirname(fileURLToPath(uri));
@@ -986,10 +1050,11 @@ const buildModuleContext = async (uri: string, text: string): Promise<ModuleCont
 	try {
 		entries = await fs.readdir(dir);
 	} catch {
-		return { moduleName, files: [{ uri, text }] };
+		return { moduleName, files: [{ uri, text }], pisaVersion: DEFAULT_PISA_VERSION };
 	}
 
 	const files: Array<{ uri: string; text: string }> = [];
+	let pisaVersion: PisaVersion | null = null;
 	for (const entry of entries) {
 		const ext = path.extname(entry).toLowerCase();
 		if (ext !== ".coco" && ext !== ".nut") {
@@ -1009,6 +1074,11 @@ const buildModuleContext = async (uri: string, text: string): Promise<ModuleCont
 			}
 		}
 
+		if (entry.toLowerCase() === "coco.nut") {
+			pisaVersion = parsePisaVersion(fileText);
+			continue;
+		}
+
 		const fileModule = getCocoModuleName(fileText);
 		if (fileModule === moduleName) {
 			files.push({ uri: fileUri, text: fileText });
@@ -1019,7 +1089,7 @@ const buildModuleContext = async (uri: string, text: string): Promise<ModuleCont
 		files.push({ uri, text });
 	}
 
-	return { moduleName, files };
+	return { moduleName, files, pisaVersion: pisaVersion ?? DEFAULT_PISA_VERSION };
 };
 
 const buildModuleSymbols = (context: ModuleContext): ModuleSymbols => {
@@ -1148,6 +1218,8 @@ const mergeInterfaceStateIndexes = (indexes: InterfaceStateIndex[]): InterfaceSt
 const mergeStateIndexes = (moduleName: string | null, indexes: StateIndex[]): StateIndex => {
 	const logicFields = new Set<string>();
 	const actorFields = new Set<string>();
+	const logicFieldTypes = new Map<string, string>();
+	const actorFieldTypes = new Map<string, string>();
 	for (const index of indexes) {
 		for (const field of index.logicFields) {
 			logicFields.add(field);
@@ -1155,8 +1227,18 @@ const mergeStateIndexes = (moduleName: string | null, indexes: StateIndex[]): St
 		for (const field of index.actorFields) {
 			actorFields.add(field);
 		}
+		for (const [field, type] of index.logicFieldTypes) {
+			if (!logicFieldTypes.has(field)) {
+				logicFieldTypes.set(field, type);
+			}
+		}
+		for (const [field, type] of index.actorFieldTypes) {
+			if (!actorFieldTypes.has(field)) {
+				actorFieldTypes.set(field, type);
+			}
+		}
 	}
-	return { moduleName, logicFields, actorFields };
+	return { moduleName, logicFields, actorFields, logicFieldTypes, actorFieldTypes };
 };
 
 const getCocoModuleName = (text: string): string | null => {
@@ -1383,8 +1465,8 @@ const matchCallableDefinition = (
 ): { name: string; nameIndex: number; params: Map<string, DefinitionLocation>; returns: Map<string, DefinitionLocation>; indent: number } | null => {
 	const indent = line.match(/^\s*/)?.[0].length ?? 0;
 	const patterns = [
-		/^\s*endpoint\s+(?:(?:invoke|enlist|deploy)\s+)?(?:(?:ephemeral|persistent|readonly|static|dynamic|pure)\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*\(([^)]*)\)\s*(?:->\s*\(([^)]*)\))?/,
-		/^\s*function\s+(?:(?:persistent|ephemeral|readonly|static|dynamic|pure)\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*\(([^)]*)\)\s*(?:->\s*\(([^)]*)\))?/,
+		/^\s*endpoint\s+(?:(?:invoke|enlist|deploy)\s+)?(?:(?:pure|static|dynamic|asset)\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*\(([^)]*)\)\s*(?:->\s*\(([^)]*)\))?/,
+		/^\s*function\s+(?:(?:pure|static|dynamic|asset)\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*\(([^)]*)\)\s*(?:->\s*\(([^)]*)\))?/,
 		/^\s*method\s+(?:(?:mutate|observe)\s+)?([A-Za-z_][A-Za-z0-9_!]*)\s*\(([^)]*)\)\s*(?:->\s*\(([^)]*)\))?/
 	];
 
@@ -1604,29 +1686,66 @@ const getPropertyNameAtPosition = (bodyText: string, bodyStart: number, position
 	return null;
 };
 
-const parseLiteralProperties = (bodyText: string, bodyStart: number): Array<{ name: string; start: number }> => {
-	const results: Array<{ name: string; start: number }> = [];
-	const depthAt = new Array<number>(bodyText.length).fill(0);
+// splitTopLevelLiteralSegments cuts a literal body at the commas that sit
+// outside every bracket and string, so `a: 1, b: Map[String]U64{"x": 2}` yields
+// two segments rather than four.
+const splitTopLevelLiteralSegments = (bodyText: string): Array<{ text: string; start: number }> => {
+	const segments: Array<{ text: string; start: number }> = [];
 	let depth = 0;
+	let segmentStart = 0;
+	let quote: string | null = null;
+
 	for (let i = 0; i < bodyText.length; i++) {
-		if (bodyText[i] === "{" || bodyText[i] === "(") { depth++; }
-		depthAt[i] = depth;
-		if (bodyText[i] === "}" || bodyText[i] === ")") { depth--; }
-	}
-	for (const match of bodyText.matchAll(/\b([A-Za-z_][A-Za-z0-9_]*)\s*:/g)) {
-		const name = match[1];
-		const matchIndex = match.index ?? -1;
-		if (matchIndex < 0) {
+		const ch = bodyText[i];
+		if (quote) {
+			if (ch === "\\") { i++; continue; }
+			if (ch === quote) { quote = null; }
 			continue;
 		}
-		if (depthAt[matchIndex] > 0) {
-			continue;
-		}
-		const nameIndex = bodyText.indexOf(name, matchIndex);
-		if (nameIndex >= 0) {
-			results.push({ name, start: bodyStart + nameIndex });
+		if (ch === '"' || ch === "'") { quote = ch; continue; }
+		if (ch === "{" || ch === "(" || ch === "[") { depth++; continue; }
+		if (ch === "}" || ch === ")" || ch === "]") { depth--; continue; }
+		if (ch === "," && depth === 0) {
+			segments.push({ text: bodyText.slice(segmentStart, i), start: segmentStart });
+			segmentStart = i + 1;
 		}
 	}
+	segments.push({ text: bodyText.slice(segmentStart), start: segmentStart });
+	return segments;
+};
+
+// parseLiteralEntries classifies each top-level entry of a class or event
+// literal. `labeled` is the classic `field: value` form; `shorthand` is the
+// field-name elision the compiler gained in 0.9.0, where a bare variable name
+// stands for `field: field`. Anything else (nested brace-elided literals, map
+// keys, expressions) is deliberately left unclassified.
+const parseLiteralEntries = (
+	bodyText: string,
+	bodyStart: number
+): Array<{ kind: "labeled" | "shorthand"; name: string; start: number }> => {
+	const results: Array<{ kind: "labeled" | "shorthand"; name: string; start: number }> = [];
+
+	for (const segment of splitTopLevelLiteralSegments(bodyText)) {
+		const labeled = segment.text.match(/^(\s*)([A-Za-z_][A-Za-z0-9_]*)\s*:/);
+		if (labeled) {
+			results.push({
+				kind: "labeled",
+				name: labeled[2],
+				start: bodyStart + segment.start + labeled[1].length
+			});
+			continue;
+		}
+
+		const shorthand = segment.text.match(/^(\s*)([A-Za-z_][A-Za-z0-9_]*)\s*$/);
+		if (shorthand) {
+			results.push({
+				kind: "shorthand",
+				name: shorthand[2],
+				start: bodyStart + segment.start + shorthand[1].length
+			});
+		}
+	}
+
 	return results;
 };
 
@@ -1669,7 +1788,6 @@ const checkUndefinedVariables = (
 		let blockActive = false;
 		let prevLineEndsBlock = false;
 		let pendingBlockDeclarations: Set<string> | null = null;
-		let inlineBlockActive = false;
 		let inlineDefined: Set<string> | null = null;
 		let inlineKeywords: Set<string> | null = null;
 		let signatureContinuation = false;
@@ -1690,7 +1808,7 @@ const checkUndefinedVariables = (
 			}
 			const commentIndex = line.indexOf("//");
 			const scanLine = commentIndex >= 0 ? line.slice(0, commentIndex) : line;
-			let stringRanges = getStringRanges(scanLine);
+			const stringRanges = getStringRanges(scanLine);
 			const lineIndent = line.match(/^\s*/)?.[0].length ?? 0;
 			const isBlank = line.trim().length === 0;
 			const inlineBlock = splitInlineBlock(scanLine);
@@ -1764,7 +1882,6 @@ const checkUndefinedVariables = (
 			}
 
 			if (inlineBlock) {
-				inlineBlockActive = true;
 				inlineDefined = new Set<string>(scopeStack[scopeStack.length - 1].defined);
 				inlineKeywords = extractInlineBlockKeywords(inlineBlock.header);
 				const inlineMutateInfo = extractMutateObserveInfo(inlineBlock.header);
@@ -1856,7 +1973,6 @@ const checkUndefinedVariables = (
 				}
 
 				prevLineEndsBlock = false;
-				inlineBlockActive = false;
 				inlineDefined = null;
 				inlineKeywords = null;
 				pendingBlockDeclarations = null;
@@ -2710,10 +2826,8 @@ const cocoKeywords = new Set<string>([
 	"false",
 	"self",
 	"Sender",
-	"Receiver",
 	"Logic",
 	"Actor",
-	"State",
 	"Builtins",
 	"Invocation",
 	"Environment",
@@ -2727,37 +2841,832 @@ const cocoKeywords = new Set<string>([
 	"shrink",
 	"switch",
 	"case",
-	"default"
+	"default",
+	"build",
+	"finally",
+	"imports",
+	"interact",
+	"local",
+	"make",
+	"package",
+	"pub",
+	"throw",
+	"pass",
+	"self"
 ]);
 
-const ASSET_METHODS = new Map<string, { args: string[]; returns: string[] }>([
-	["Transfer", { args: ["token_id", "beneficiary", "amount"], returns: [] }],
-	["TransferFrom", { args: ["token_id", "benefactor", "beneficiary", "amount"], returns: [] }],
-	["Mint", { args: ["token_id", "beneficiary", "amount"], returns: [] }],
-	["MintWithMetadata", { args: ["token_id", "beneficiary", "amount", "static_metadata"], returns: [] }],
-	["Burn", { args: ["token_id", "amount"], returns: [] }],
-	["Approve", { args: ["token_id", "beneficiary", "amount", "expires_at"], returns: [] }],
-	["Revoke", { args: ["token_id", "beneficiary"], returns: [] }],
-	["Lockup", { args: ["token_id", "beneficiary", "amount"], returns: [] }],
-	["Release", { args: ["token_id", "benefactor", "beneficiary", "amount"], returns: [] }],
-	["Symbol", { args: [], returns: ["symbol"] }],
-	["BalanceOf", { args: ["token_id", "address"], returns: ["balance"] }],
-	["Creator", { args: [], returns: ["creator"] }],
-	["Manager", { args: [], returns: ["manager"] }],
-	["Decimals", { args: [], returns: ["decimals"] }],
-	["MaxSupply", { args: [], returns: ["max_supply"] }],
-	["CirculatingSupply", { args: [], returns: ["circulating_supply"] }],
-	["EnableEvents", { args: [], returns: ["enable_events"] }],
-	["SetStaticMetadata", { args: ["key", "value"], returns: [] }],
-	["SetDynamicMetadata", { args: ["key", "value"], returns: [] }],
-	["GetStaticMetadata", { args: ["key"], returns: ["value"] }],
-	["GetDynamicMetadata", { args: ["key"], returns: ["value"] }],
-	["SetStaticTokenMetadata", { args: ["token_id", "key", "value"], returns: [] }],
-	["SetDynamicTokenMetadata", { args: ["token_id", "key", "value"], returns: [] }],
-	["GetStaticTokenMetadata", { args: ["token_id", "key"], returns: ["value"] }],
-	["GetDynamicTokenMetadata", { args: ["token_id", "key"], returns: ["value"] }],
-	["Define", { args: ["symbol", "decimals", "manager", "creator", "max_supply", "enable_events"], returns: [] }],
+// RESERVED_WORDS is the exact list the compiler refuses as a name. Kept separate
+// from cocoKeywords, which is a looser "don't treat this as a receiver" set.
+const RESERVED_WORDS = new Set<string>([
+	"actor", "append", "asset", "break", "build", "case", "catch",
+	"class", "coco", "const", "continue", "default", "depolorize", "deploy",
+	"disperse", "dynamic", "else", "emit", "endpoint", "enlist", "ephemeral",
+	"event", "false", "field", "finally", "for", "function", "gather",
+	"generate", "if", "imports", "in", "interact", "interface", "invoke",
+	"local", "logic", "make", "memory", "method", "mutate", "observe",
+	"package", "pass", "payer", "persistent", "pub", "pure", "readonly",
+	"return", "revert", "self", "state", "static", "storage", "sweep",
+	"switch", "throw", "topic", "true", "try", "yield",
+	"Actor", "Builtins", "Environment", "Invocation", "Logic", "Map", "Sender"
 ]);
+
+// RESERVED_WORD_ALTERNATIVES suggests a way out for the reserved words that read
+// most like ordinary names.
+const RESERVED_WORD_ALTERNATIVES = new Map<string, string>([
+	["actor", "owner, participant, account"],
+	["payer", "payer_id, sponsor"],
+	["local", "tmp, scratch"],
+	["default", "fallback"],
+	["field", "field_name"],
+	["topic", "topic_name"],
+	["method", "method_name"],
+	["state", "state_value"],
+	["logic", "logic_id"],
+	["asset", "asset_id"]
+]);
+
+// StateQualifier is what an endpoint or function declares about the state it
+// touches. Since compiler 0.9.0 the compiler infers the requirement from the
+// body and rejects any mismatch in either direction, so an omitted qualifier
+// means `pure` — not `static`.
+type StateQualifier = "pure" | "static" | "dynamic";
+
+const QUALIFIER_RANK: Record<StateQualifier, number> = { pure: 0, static: 1, dynamic: 2 };
+
+const strongerQualifier = (left: StateQualifier, right: StateQualifier): StateQualifier =>
+	QUALIFIER_RANK[left] >= QUALIFIER_RANK[right] ? left : right;
+
+// ASSET_METHODS carries each asset engine method's argument names and the state
+// qualifier its caller has to declare: every asset write is `dynamic`, every
+// asset read is `static`. Mirrors ASSET_METHODS in the compiler's
+// pisa/codegen/src/compiler/assets.rs — note there is no `Define`, an asset is
+// created through Cocolab's `create` command rather than from Coco source.
+const ASSET_METHODS = new Map<string, { args: string[]; returns: string[]; qualifier: StateQualifier }>([
+	["Transfer", { args: ["token_id", "beneficiary", "amount"], returns: [], qualifier: "dynamic" }],
+	["TransferFrom", { args: ["token_id", "benefactor", "beneficiary", "amount"], returns: [], qualifier: "dynamic" }],
+	["Mint", { args: ["token_id", "beneficiary", "amount"], returns: [], qualifier: "dynamic" }],
+	["MintWithMetadata", { args: ["token_id", "beneficiary", "amount", "static_metadata"], returns: [], qualifier: "dynamic" }],
+	["Burn", { args: ["token_id", "amount"], returns: [], qualifier: "dynamic" }],
+	["Approve", { args: ["token_id", "beneficiary", "amount", "expires_at"], returns: [], qualifier: "dynamic" }],
+	["Revoke", { args: ["token_id", "beneficiary"], returns: [], qualifier: "dynamic" }],
+	["Lockup", { args: ["token_id", "beneficiary", "amount"], returns: [], qualifier: "dynamic" }],
+	["Release", { args: ["token_id", "benefactor", "beneficiary", "amount"], returns: [], qualifier: "dynamic" }],
+	["Symbol", { args: [], returns: ["symbol"], qualifier: "static" }],
+	["BalanceOf", { args: ["token_id", "address"], returns: ["balance"], qualifier: "static" }],
+	["Creator", { args: [], returns: ["creator"], qualifier: "static" }],
+	["Manager", { args: [], returns: ["manager"], qualifier: "static" }],
+	["Decimals", { args: [], returns: ["decimals"], qualifier: "static" }],
+	["MaxSupply", { args: [], returns: ["max_supply"], qualifier: "static" }],
+	["CirculatingSupply", { args: [], returns: ["circulating_supply"], qualifier: "static" }],
+	["EnableEvents", { args: [], returns: ["enable_events"], qualifier: "static" }],
+	["SetStaticMetadata", { args: ["key", "value"], returns: [], qualifier: "dynamic" }],
+	["SetDynamicMetadata", { args: ["key", "value"], returns: [], qualifier: "dynamic" }],
+	["GetStaticMetadata", { args: ["key"], returns: ["value"], qualifier: "static" }],
+	["GetDynamicMetadata", { args: ["key"], returns: ["value"], qualifier: "static" }],
+	["SetStaticTokenMetadata", { args: ["token_id", "key", "value"], returns: [], qualifier: "dynamic" }],
+	["SetDynamicTokenMetadata", { args: ["token_id", "key", "value"], returns: [], qualifier: "dynamic" }],
+	["GetStaticTokenMetadata", { args: ["token_id", "key"], returns: ["value"], qualifier: "static" }],
+	["GetDynamicTokenMetadata", { args: ["token_id", "key"], returns: ["value"], qualifier: "static" }],
+]);
+
+// BuiltinMethodSignature describes a method hanging off one of the superglobals.
+// `since`/`until` bound the PISA versions that implement it — the compiler
+// rejects a call outside that window rather than silently ignoring it.
+type BuiltinMethodSignature = {
+	args: Array<{ name: string; type: string }>;
+	returns: string[];
+	since?: PisaVersion;
+	until?: PisaVersion;
+	replacedBy?: string;
+	detail: string;
+};
+
+const ENVIRONMENT_METHODS = new Map<string, BuiltinMethodSignature>([
+	["Timestamp", { args: [], returns: ["U64"], detail: "Current block timestamp" }],
+	["ClusterID", { args: [], returns: ["String"], until: "0.3.2", detail: "Cluster the logic runs on (PISA 0.3.2 only)" }],
+	["EffortCapacity", { args: [], returns: ["U64"], since: "0.4.0", detail: "Total fuel available for this execution" }],
+	["EffortAvailable", { args: [], returns: ["U64"], since: "0.4.0", detail: "Remaining fuel" }],
+	["StorageResult", {
+		args: [{ name: "account", type: "Identifier" }, { name: "payer", type: "Identifier" }],
+		returns: ["U64", "U64"],
+		since: "0.8.0",
+		detail: "Storage bytes (added, removed) so far in this interaction for account, charged to payer"
+	}],
+	["VolumeCapacity", {
+		args: [], returns: ["U64"], since: "0.4.0", until: "0.7.1",
+		replacedBy: "Environment.StorageResult(account, payer)",
+		detail: "Total storage space available (removed in PISA 0.8.0)"
+	}],
+	["VolumeAvailable", {
+		args: [], returns: ["U64"], since: "0.4.0", until: "0.7.1",
+		replacedBy: "Environment.StorageResult(account, payer)",
+		detail: "Remaining storage space (removed in PISA 0.8.0)"
+	}]
+]);
+
+const INVOCATION_METHODS = new Map<string, BuiltinMethodSignature>([
+	["ID", { args: [], returns: ["Identifier"], detail: "Unique ID of this invocation" }],
+	["__id__", { args: [], returns: ["Identifier"], detail: "Alias of Invocation.ID()" }],
+	["Caller", { args: [], returns: ["Identifier"], since: "0.5.0", detail: "Immediate caller of this endpoint" }],
+	["Kind", { args: [], returns: ["String"], until: "0.3.2", detail: "Interaction kind (PISA 0.3.2 only)" }],
+	["FuelLimit", { args: [], returns: ["U64"], until: "0.3.2", detail: "Fuel limit of the interaction (PISA 0.3.2 only)" }],
+	["FuelPrice", { args: [], returns: ["U256"], until: "0.3.2", detail: "Fuel price of the interaction (PISA 0.3.2 only)" }]
+]);
+
+const BUILTINS_METHODS = new Map<string, BuiltinMethodSignature>([
+	["Sha256", { args: [{ name: "data", type: "Bytes" }], returns: ["U256"], detail: "SHA-256 hash" }],
+	["Keccak", { args: [{ name: "data", type: "Bytes" }], returns: ["U256"], detail: "Keccak-256 hash" }],
+	["Blake2b", { args: [{ name: "data", type: "Bytes" }], returns: ["U256"], detail: "Blake2b hash" }],
+	["Sigverify", {
+		args: [{ name: "data", type: "Bytes" }, { name: "signature", type: "Bytes" }, { name: "pubkey", type: "Bytes" }],
+		returns: ["Bool"],
+		detail: "Verify a signature"
+	}]
+]);
+
+// ACTOR_METHODS are the participant queries introduced with PISA 0.8.0. They
+// read the interaction, not any logic's state, so an endpoint that only calls
+// them stays `pure`.
+const ACTOR_METHODS = new Map<string, BuiltinMethodSignature>([
+	["Exists", { args: [], returns: ["Bool"], since: "0.8.0", detail: "Is the identifier a participant of this interaction (never raises)" }],
+	["HasSigned", { args: [], returns: ["Bool"], since: "0.8.0", detail: "Has the participant signed this interaction (raises on a non-participant)" }],
+	["Param", { args: [{ name: "name", type: "String" }], returns: ["Bytes"], since: "0.8.0", detail: "Interaction parameter supplied by that participant (raises on a non-participant)" }]
+]);
+
+const SUPERGLOBAL_METHODS = new Map<string, Map<string, BuiltinMethodSignature>>([
+	["Environment", ENVIRONMENT_METHODS],
+	["Invocation", INVOCATION_METHODS],
+	["Builtins", BUILTINS_METHODS],
+	["Actor", ACTOR_METHODS]
+]);
+
+// signatureLabel renders a builtin signature the way the reference docs do.
+const signatureLabel = (name: string, signature: BuiltinMethodSignature): string => {
+	const args = signature.args.map(arg => `${arg.name} ${arg.type}`).join(", ");
+	const returns = signature.returns.length > 0 ? ` -> (${signature.returns.join(", ")})` : "";
+	return `${name}(${args})${returns}`;
+};
+
+// buildMemberCompletions offers the members of whichever receiver the cursor is
+// sitting behind — `Environment.`, `Actor(id).`, `asset.` and friends. Returns
+// null when the cursor is not after a known receiver, so the caller can fall
+// back to the keyword list.
+const buildMemberCompletions = (linePrefix: string, pisaVersion: PisaVersion): CompletionItem[] | null => {
+	// Only offer what the target version actually implements, so a 0.8.0 project
+	// never sees VolumeAvailable and a 0.7.1 one never sees StorageResult.
+	const availableOn = (signature: BuiltinMethodSignature): boolean =>
+		(!signature.since || isPisaAtLeast(pisaVersion, signature.since))
+		&& (!signature.until || !isPisaAfter(pisaVersion, signature.until));
+
+	const toItem = (name: string, signature: BuiltinMethodSignature): CompletionItem => ({
+		label: name,
+		kind: CompletionItemKind.Method,
+		detail: signatureLabel(name, signature),
+		documentation: signature.detail
+	});
+
+	const superglobal = linePrefix.match(/(?:^|[^A-Za-z0-9_.])(Environment|Invocation|Builtins)\s*\.\s*[A-Za-z0-9_]*$/);
+	if (superglobal) {
+		const table = SUPERGLOBAL_METHODS.get(superglobal[1]);
+		return table ? [...table.entries()]
+			.filter(([, signature]) => availableOn(signature))
+			.map(([name, signature]) => toItem(name, signature)) : null;
+	}
+
+	if (/Actor\s*\([^()]*\)\s*\.\s*[A-Za-z0-9_]*$/.test(linePrefix)) {
+		return [...ACTOR_METHODS.entries()]
+			.filter(([, signature]) => availableOn(signature))
+			.map(([name, signature]) => toItem(name, signature));
+	}
+
+	if (/(?:^|[^A-Za-z0-9_.])asset\s*\.\s*[A-Za-z0-9_]*$/.test(linePrefix)) {
+		return [...ASSET_METHODS.entries()].map(([name, method]) => ({
+			label: name,
+			kind: CompletionItemKind.Method,
+			detail: `${name}(${method.args.join(", ")})`
+				+ (method.returns.length > 0 ? ` -> (${method.returns.join(", ")})` : ""),
+			documentation: `Asset engine method — the calling endpoint must be declared '${method.qualifier}'.`
+		}));
+	}
+
+	return null;
+};
+
+// buildLineOffsets returns the absolute offset each line starts at, so a match
+// index into the joined text can be turned back into an LSP position.
+const buildLineOffsets = (lines: string[]): number[] => {
+	const offsets: number[] = [];
+	let offset = 0;
+	for (const line of lines) {
+		offsets.push(offset);
+		offset += line.length + 1;
+	}
+	return offsets;
+};
+
+const offsetToPosition = (offsets: number[], pos: number): { line: number; character: number } => {
+	let lo = 0;
+	let hi = offsets.length - 1;
+	while (lo < hi) {
+		const mid = (lo + hi + 1) >> 1;
+		if (offsets[mid] <= pos) { lo = mid; } else { hi = mid - 1; }
+	}
+	return { line: lo, character: pos - offsets[lo] };
+};
+
+// findMatchingCloseParen walks forward from an opening parenthesis and returns
+// the index of its partner, or -1 when the call is still being typed.
+const findMatchingCloseParen = (text: string, openParenPos: number): number => {
+	let depth = 0;
+	for (let i = openParenPos; i < text.length; i++) {
+		const ch = text[i];
+		if (ch === "(" || ch === "{" || ch === "[") {
+			depth++;
+		} else if (ch === ")" || ch === "}" || ch === "]") {
+			depth--;
+			if (depth === 0) {
+				return i;
+			}
+		}
+	}
+	return -1;
+};
+
+const splitCallArguments = (argsText: string): string[] => {
+	const trimmed = argsText.trim();
+	if (trimmed.length === 0) {
+		return [];
+	}
+
+	const args: string[] = [];
+	let depth = 0;
+	let start = 0;
+	let quote: string | null = null;
+	for (let i = 0; i < argsText.length; i++) {
+		const ch = argsText[i];
+		if (quote) {
+			if (ch === "\\") { i++; continue; }
+			if (ch === quote) { quote = null; }
+			continue;
+		}
+		if (ch === '"' || ch === "'") { quote = ch; continue; }
+		if (ch === "(" || ch === "{" || ch === "[") { depth++; }
+		else if (ch === ")" || ch === "}" || ch === "]") { depth--; }
+		else if (ch === "," && depth === 0) {
+			args.push(argsText.slice(start, i).trim());
+			start = i + 1;
+		}
+	}
+	args.push(argsText.slice(start).trim());
+	return args;
+};
+
+// isInsideCommentOrString is the same cheap guard checkAssetMethodCalls uses:
+// anything past a `//` on the line, or after an odd number of quotes, is text.
+const isInsideCommentOrString = (line: string, character: number): boolean => {
+	const commentIdx = line.indexOf("//");
+	if (commentIdx >= 0 && character >= commentIdx) {
+		return true;
+	}
+	const prefix = line.slice(0, character);
+	const doubleQuotes = (prefix.match(/(?<!\\)"/g) || []).length;
+	return doubleQuotes % 2 !== 0;
+};
+
+// findSuperglobalMethodCalls locates every `Environment.X(`, `Invocation.X(`,
+// `Builtins.X(` and `Actor(<expr>).X(` in the document. `Actor` is only treated
+// as a superglobal when it does not follow a dot — `Module.Actor(id).field` is
+// a state path, not a method call.
+const findSuperglobalMethodCalls = (
+	normalizedText: string,
+	lines: string[],
+	offsets: number[]
+): Array<{ superglobal: string; method: string; methodStart: number; openParen: number }> => {
+	const results: Array<{ superglobal: string; method: string; methodStart: number; openParen: number }> = [];
+
+	const plainPattern = /(?<![A-Za-z0-9_.])(Environment|Invocation|Builtins)\s*\.\s*([A-Za-z_]\w*)\s*\(/g;
+	let match: RegExpExecArray | null;
+	while ((match = plainPattern.exec(normalizedText)) !== null) {
+		const position = offsetToPosition(offsets, match.index);
+		if (isInsideCommentOrString(lines[position.line] ?? "", position.character)) {
+			continue;
+		}
+		const methodStart = normalizedText.lastIndexOf(match[2], match.index + match[0].length);
+		results.push({
+			superglobal: match[1],
+			method: match[2],
+			methodStart,
+			openParen: match.index + match[0].length - 1
+		});
+	}
+
+	const actorPattern = /(?<![A-Za-z0-9_.])Actor\s*\(/g;
+	while ((match = actorPattern.exec(normalizedText)) !== null) {
+		const position = offsetToPosition(offsets, match.index);
+		if (isInsideCommentOrString(lines[position.line] ?? "", position.character)) {
+			continue;
+		}
+		const closeParen = findMatchingCloseParen(normalizedText, match.index + match[0].length - 1);
+		if (closeParen < 0) {
+			continue;
+		}
+		const tail = normalizedText.slice(closeParen + 1).match(/^\s*\.\s*([A-Za-z_]\w*)\s*\(/);
+		if (!tail) {
+			continue;
+		}
+		const methodStart = normalizedText.indexOf(tail[1], closeParen + 1);
+		results.push({
+			superglobal: "Actor",
+			method: tail[1],
+			methodStart,
+			openParen: closeParen + tail[0].length
+		});
+	}
+
+	return results;
+};
+
+// checkSuperglobalMethodCalls validates calls on Environment, Invocation,
+// Builtins and Actor(...): the method has to exist, be available on the target
+// PISA version, and be called with the arguments it declares.
+// stripCommentsAndStrings blanks out everything the compiler would not read as
+// code on a line, so keyword scans never trip over `// mutate` or "observe".
+const stripCommentsAndStrings = (line: string): string => {
+	let result = "";
+	let quote: string | null = null;
+	for (let i = 0; i < line.length; i++) {
+		const ch = line[i];
+		if (quote) {
+			result += " ";
+			if (ch === "\\") { result += " "; i++; continue; }
+			if (ch === quote) { quote = null; }
+			continue;
+		}
+		if (ch === '"' || ch === "'") { quote = ch; result += " "; continue; }
+		if (ch === "/" && line[i + 1] === "/") { break; }
+		result += ch;
+	}
+	return result;
+};
+
+type QualifierCallable = {
+	kind: "endpoint" | "function";
+	name: string;
+	lifecycle: string | null;
+	// `asset` is a state qualifier too, but the compiler exempts it from the
+	// requirement check, so it is tracked apart from pure/static/dynamic.
+	declared: StateQualifier | null;
+	isAssetQualified: boolean;
+	line: number;
+	nameStart: number;
+	bodyStart: number;
+	bodyEnd: number;
+};
+
+// buildInterfaceMemberQualifiers records the qualifier each interface member
+// declares. An `endpoint:` member without one reads external state, so it counts
+// as `static`; every `asset:` member counts as `dynamic`.
+const buildInterfaceMemberQualifiers = (text: string): Map<string, Map<string, StateQualifier>> => {
+	const lines = text.split(/\r?\n/);
+	const interfaces = new Map<string, Map<string, StateQualifier>>();
+
+	let currentInterface: string | null = null;
+	let interfaceIndent = 0;
+	let section: "endpoint" | "asset" | null = null;
+	let sectionIndent = 0;
+
+	for (const rawLine of lines) {
+		const line = stripCommentsAndStrings(rawLine);
+		const isBlank = line.trim().length === 0;
+		const indent = line.match(/^\s*/)?.[0].length ?? 0;
+
+		const interfaceMatch = line.match(/^\s*interface\s+([A-Za-z_][A-Za-z0-9_]*)\s*:\s*$/);
+		if (interfaceMatch) {
+			currentInterface = interfaceMatch[1];
+			interfaceIndent = indent;
+			section = null;
+			interfaces.set(currentInterface, new Map());
+			continue;
+		}
+
+		if (currentInterface && !isBlank && indent <= interfaceIndent) {
+			currentInterface = null;
+			section = null;
+		}
+		if (!currentInterface) {
+			continue;
+		}
+
+		const sectionMatch = line.match(/^\s*(endpoint|asset)\s*:\s*$/);
+		if (sectionMatch) {
+			section = sectionMatch[1] === "asset" ? "asset" : "endpoint";
+			sectionIndent = indent;
+			continue;
+		}
+		if (section && !isBlank && indent <= sectionIndent) {
+			section = null;
+		}
+		if (!section) {
+			continue;
+		}
+
+		const memberMatch = line.match(/^\s*(?:(dynamic|static|pure)\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*\(/);
+		if (!memberMatch) {
+			continue;
+		}
+
+		const qualifier: StateQualifier = section === "asset"
+			? "dynamic"
+			: ((memberMatch[1] as StateQualifier | undefined) ?? "static");
+		interfaces.get(currentInterface)?.set(memberMatch[2], qualifier);
+	}
+
+	return interfaces;
+};
+
+// collectQualifierCallables finds every top-level endpoint and function along
+// with the body it owns.
+const collectQualifierCallables = (lines: string[]): QualifierCallable[] => {
+	const declarationPattern = /^(endpoint|function)\s+(?:(invoke|enlist|deploy|interact)\s+)?(?:(pure|static|dynamic|asset)\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*\(/;
+	const results: QualifierCallable[] = [];
+
+	for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+		const line = stripCommentsAndStrings(lines[lineIndex]);
+		const match = line.match(declarationPattern);
+		if (!match) {
+			continue;
+		}
+
+		const qualifierWord = match[3];
+		const isAssetQualified = qualifierWord === "asset";
+		const declared = isAssetQualified ? null : ((qualifierWord as StateQualifier | undefined) ?? null);
+
+		// A signature may wrap across lines, and its closing `):` often sits in
+		// column 0 — walk the parentheses so the body starts after the header.
+		let headerEnd = lineIndex;
+		let depth = 0;
+		for (let cursor = lineIndex; cursor < lines.length; cursor++) {
+			for (const ch of stripCommentsAndStrings(lines[cursor])) {
+				if (ch === "(") { depth++; }
+				else if (ch === ")") { depth--; }
+			}
+			headerEnd = cursor;
+			if (depth <= 0) {
+				break;
+			}
+		}
+
+		let bodyEnd = lines.length - 1;
+		for (let next = headerEnd + 1; next < lines.length; next++) {
+			const candidate = lines[next];
+			if (candidate.trim().length === 0) {
+				continue;
+			}
+			if (!/^\s/.test(candidate)) {
+				bodyEnd = next - 1;
+				break;
+			}
+		}
+
+		results.push({
+			kind: match[1] === "function" ? "function" : "endpoint",
+			name: match[4],
+			lifecycle: match[2] ?? null,
+			declared,
+			isAssetQualified,
+			line: lineIndex,
+			nameStart: line.indexOf(match[4], (match[2] ?? match[1]).length),
+			bodyStart: headerEnd + 1,
+			bodyEnd
+		});
+	}
+
+	return results;
+};
+
+// checkStateQualifiers infers the qualifier each endpoint and function needs
+// from what its body actually does — mutate, observe, asset methods, calls into
+// other callables, and cross-logic interface calls — and reports any declaration
+// that does not match exactly. `deploy` and `enlist` endpoints are exempt.
+// checkReservedWordNames flags declarations that reuse a reserved word. The
+// compiler reports these as `Unrecognized token`, which points at the token
+// rather than explaining that the name itself is the problem.
+const checkReservedWordNames = (
+	text: string,
+	diagnostics: Diagnostic[]
+): void => {
+	const lines = text.split(/\r?\n/);
+	const callableIndex = buildCallableIndex(text);
+
+	const report = (name: string, line: number, character: number, role: string): void => {
+		if (!RESERVED_WORDS.has(name)) {
+			return;
+		}
+		const alternatives = RESERVED_WORD_ALTERNATIVES.get(name);
+		diagnostics.push({
+			severity: DiagnosticSeverity.Error,
+			range: {
+				start: { line, character },
+				end: { line, character: character + name.length }
+			},
+			message: `'${name}' is a reserved word and cannot be used as ${role}`
+				+ (alternatives ? `. Try ${alternatives}` : ""),
+			source: 'ex'
+		});
+	};
+
+	for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+		const code = stripCommentsAndStrings(lines[lineIndex]);
+
+		const declaration = code.match(/^(\s*)(memory|storage|const)\s+([A-Za-z_][A-Za-z0-9_]*(?:\s*,\s*[A-Za-z_][A-Za-z0-9_]*)*)/);
+		if (declaration) {
+			let cursor = declaration[1].length + declaration[2].length;
+			for (const rawName of declaration[3].split(",")) {
+				const name = rawName.trim();
+				const nameStart = code.indexOf(name, cursor);
+				if (nameStart >= 0) {
+					report(name, lineIndex, nameStart, `a ${declaration[2]} variable name`);
+					cursor = nameStart + name.length;
+				}
+			}
+		}
+
+		const member = code.match(/^(\s*)(field|topic)\s+([A-Za-z_][A-Za-z0-9_]*)/);
+		if (member) {
+			const nameStart = code.indexOf(member[3], member[1].length + member[2].length);
+			if (nameStart >= 0) {
+				report(member[3], lineIndex, nameStart, `a ${member[2]} name`);
+			}
+		}
+	}
+
+	for (const [callableName, callable] of callableIndex.callables.entries()) {
+		report(callableName, callable.definition.line, callable.definition.character, "a callable name");
+		for (const [name, location] of callable.params.entries()) {
+			report(name, location.line, location.character, "an argument name");
+		}
+		for (const [name, location] of callable.returns.entries()) {
+			report(name, location.line, location.character, "a return value name");
+		}
+	}
+};
+
+const checkStateQualifiers = (
+	text: string,
+	pisaVersion: PisaVersion,
+	interfaceStateIndex: InterfaceStateIndex,
+	diagnostics: Diagnostic[]
+): void => {
+	// PISA 0.3.2 predates the static/dynamic qualifiers entirely and has its own,
+	// looser rules. Its vocabulary is no longer supported, so leave it alone.
+	if (!isPisaAtLeast(pisaVersion, "0.4.0")) {
+		return;
+	}
+
+	// `pure` only exists from PISA 0.6.0 (reported as 0.7.1) onwards. Below that
+	// an omitted qualifier means `static`, and a body with no state access still
+	// requires `static`.
+	const supportsPure = isPisaAtLeast(pisaVersion, "0.7.1");
+	const noAccessQualifier: StateQualifier = supportsPure ? "pure" : "static";
+
+	const lines = text.split(/\r?\n/);
+	const callables = collectQualifierCallables(lines);
+	if (callables.length === 0) {
+		return;
+	}
+
+	const callableIndex = buildCallableIndex(text);
+	const interfaceMembers = buildInterfaceMemberQualifiers(text);
+	const byName = new Map<string, QualifierCallable>();
+	for (const callable of callables) {
+		if (!byName.has(callable.name)) {
+			byName.set(callable.name, callable);
+		}
+	}
+
+	const direct = new Map<string, StateQualifier>();
+	const callees = new Map<string, Set<string>>();
+
+	for (const callable of callables) {
+		let required: StateQualifier = "pure";
+		const called = new Set<string>();
+
+		for (let lineIndex = callable.bodyStart; lineIndex <= callable.bodyEnd && lineIndex < lines.length; lineIndex++) {
+			const code = stripCommentsAndStrings(lines[lineIndex]);
+			if (code.trim().length === 0) {
+				continue;
+			}
+
+			if (/\bmutate\b/.test(code)) {
+				required = "dynamic";
+			} else if (/\b(?:observe|gather)\b/.test(code)) {
+				required = strongerQualifier(required, "static");
+			}
+
+			// On PISA 0.4.0 emitting an event is itself a state change.
+			if (pisaVersion === "0.4.0" && /\bemit\b/.test(code)) {
+				required = "dynamic";
+			}
+
+			for (const assetCall of code.matchAll(/\basset\s*\.\s*([A-Za-z_]\w*)\s*\(/g)) {
+				const assetMethod = ASSET_METHODS.get(assetCall[1]);
+				if (assetMethod) {
+					required = strongerQualifier(required, assetMethod.qualifier);
+				}
+			}
+
+			for (const candidate of findCallCandidates(code)) {
+				if (candidate.callee !== callable.name && byName.has(candidate.callee)) {
+					called.add(candidate.callee);
+				}
+			}
+
+			for (const memberCall of code.matchAll(/(?:^|[^A-Za-z0-9_.])([A-Za-z_]\w*)\s*(?:\([^()]*\))?\s*\.\s*([A-Za-z_]\w*)\s*\(/g)) {
+				const receiver = memberCall[1];
+				const member = memberCall[2];
+				if (receiver === "asset" || receiver === "self" || SUPERGLOBAL_METHODS.has(receiver)) {
+					continue;
+				}
+
+				let interfaceName: string | null = interfaceMembers.has(receiver) ? receiver : null;
+				if (!interfaceName) {
+					const receiverType = findTypeForReceiver(text, receiver, lineIndex, callableIndex)
+						?? findAssignedTypeGlobal(text, receiver, lineIndex)
+						?? resolveInterfaceReceiver(text, receiver, lineIndex, interfaceStateIndex);
+					if (receiverType && interfaceMembers.has(receiverType)) {
+						interfaceName = receiverType;
+					}
+				}
+
+				const memberQualifier = interfaceName ? interfaceMembers.get(interfaceName)?.get(member) : undefined;
+				if (memberQualifier) {
+					required = strongerQualifier(required, memberQualifier);
+				}
+			}
+		}
+
+		direct.set(callable.name, strongerQualifier(direct.get(callable.name) ?? "pure", required));
+		callees.set(callable.name, called);
+	}
+
+	// Requirements travel up the call graph, so keep folding callee requirements
+	// into their callers until nothing changes.
+	const resolved = new Map(direct);
+	for (let pass = 0; pass < callables.length; pass++) {
+		let changed = false;
+		for (const callable of callables) {
+			let required = resolved.get(callable.name) ?? "pure";
+			for (const callee of callees.get(callable.name) ?? []) {
+				required = strongerQualifier(required, resolved.get(callee) ?? "pure");
+			}
+			if (required !== resolved.get(callable.name)) {
+				resolved.set(callable.name, required);
+				changed = true;
+			}
+		}
+		if (!changed) {
+			break;
+		}
+	}
+
+	for (const callable of callables) {
+		// deploy and enlist are dynamic by definition, and `endpoint asset` is
+		// exempt as well — the compiler skips all three.
+		if (callable.lifecycle === "deploy" || callable.lifecycle === "enlist" || callable.isAssetQualified) {
+			continue;
+		}
+
+		const inferred = resolved.get(callable.name) ?? "pure";
+		const required = inferred === "pure" ? noAccessQualifier : inferred;
+		const declared = callable.declared ?? noAccessQualifier;
+		if (declared === required) {
+			continue;
+		}
+
+		const hint = callable.declared === null
+			? ` (an omitted qualifier means '${noAccessQualifier}', so write '${callable.kind} ${required} ${callable.name}')`
+			: "";
+		diagnostics.push({
+			severity: DiagnosticSeverity.Error,
+			range: {
+				start: { line: callable.line, character: Math.max(0, callable.nameStart) },
+				end: { line: callable.line, character: Math.max(0, callable.nameStart) + callable.name.length }
+			},
+			message: `${callable.kind} '${callable.name}' is declared as '${declared}', but it requires state qualifier '${required}'${hint}`,
+			source: 'ex'
+		});
+	}
+};
+
+const checkSuperglobalMethodCalls = (
+	text: string,
+	pisaVersion: PisaVersion,
+	classIndex: ClassIndex,
+	diagnostics: Diagnostic[]
+): void => {
+	const lines = text.split(/\r?\n/);
+	const offsets = buildLineOffsets(lines);
+	const normalizedText = lines.join("\n");
+	const callableIndex = buildCallableIndex(text);
+
+	for (const call of findSuperglobalMethodCalls(normalizedText, lines, offsets)) {
+		const table = SUPERGLOBAL_METHODS.get(call.superglobal);
+		if (!table) {
+			continue;
+		}
+
+		const methodPosition = offsetToPosition(offsets, call.methodStart);
+		const methodRange = {
+			start: methodPosition,
+			end: { line: methodPosition.line, character: methodPosition.character + call.method.length }
+		};
+
+		// Actor is written `Actor(id).Method()`, so spell it that way in messages.
+		const receiverLabel = call.superglobal === "Actor" ? "Actor(id)" : call.superglobal;
+
+		const signature = table.get(call.method);
+		if (!signature) {
+			const known = [...table.keys()].join(", ");
+			diagnostics.push({
+				severity: DiagnosticSeverity.Error,
+				range: methodRange,
+				message: call.superglobal === "Actor"
+					? `'${call.method}' is not defined for type identifier. Actor methods are: ${known}`
+					: `'${call.method}' is not a method of ${call.superglobal}. Known methods: ${known}`,
+				source: 'ex'
+			});
+			continue;
+		}
+
+		if (signature.since && !isPisaAtLeast(pisaVersion, signature.since)) {
+			diagnostics.push({
+				severity: DiagnosticSeverity.Error,
+				range: methodRange,
+				message: `${receiverLabel}.${call.method}() is not implemented in PISA v${pisaVersion}, implemented in v${signature.since}`,
+				source: 'ex'
+			});
+			continue;
+		}
+
+		if (signature.until && isPisaAfter(pisaVersion, signature.until)) {
+			const replacement = signature.replacedBy ? ` — use ${signature.replacedBy}` : "";
+			diagnostics.push({
+				severity: DiagnosticSeverity.Error,
+				range: methodRange,
+				message: `${receiverLabel}.${call.method}() is not supported in PISA v${pisaVersion}, it exists only up to v${signature.until}${replacement}`,
+				source: 'ex'
+			});
+			continue;
+		}
+
+		const closeParen = findMatchingCloseParen(normalizedText, call.openParen);
+		if (closeParen < 0) {
+			continue;
+		}
+
+		const argsText = normalizedText.slice(call.openParen + 1, closeParen);
+		const args = splitCallArguments(argsText);
+		if (args.length !== signature.args.length) {
+			const names = signature.args.map(arg => arg.name).join(", ");
+			diagnostics.push({
+				severity: DiagnosticSeverity.Error,
+				range: methodRange,
+				message: `${call.method} takes exactly ${signature.args.length} argument(s)${names ? ` (${names})` : ""}, found ${args.length}`,
+				source: 'ex'
+			});
+			continue;
+		}
+
+		for (let index = 0; index < args.length; index++) {
+			const expected = signature.args[index];
+			const labelMatch = args[index].match(/^([A-Za-z_]\w*)\s*:\s*([\s\S]*)$/);
+			const valueText = labelMatch ? labelMatch[2] : args[index];
+
+			if (labelMatch && !signature.args.some(arg => arg.name === labelMatch[1])) {
+				diagnostics.push({
+					severity: DiagnosticSeverity.Warning,
+					range: methodRange,
+					message: `unknown argument '${labelMatch[1]}' for ${receiverLabel}.${call.method}(). Expected: ${signature.args.map(arg => arg.name).join(", ")}`,
+					source: 'ex'
+				});
+				continue;
+			}
+
+			const expectedName = labelMatch
+				? (signature.args.find(arg => arg.name === labelMatch[1])?.type ?? expected.type)
+				: expected.type;
+			const actual = inferExpressionType(valueText, methodPosition.line, text, callableIndex, classIndex);
+			if (actual && !actual.isCollection && actual.typeName !== expectedName && builtinTypeNames.has(actual.typeName)) {
+				diagnostics.push({
+					severity: DiagnosticSeverity.Error,
+					range: methodRange,
+					message: `argument '${labelMatch ? labelMatch[1] : expected.name}' of '${call.method}' expects type ${expectedName}, found ${actual.typeName}`,
+					source: 'ex'
+				});
+			}
+		}
+	}
+};
 
 const getArgumentNameAtPosition = (argsText: string, argsStart: number, position: number): string | null => {
 	let depth = 0;
@@ -3185,8 +4094,8 @@ const extractInlineVariableDeclarations = (line: string): { name: string; charac
 
 const findDefinition = (text: string, target: string): { line: number; character: number } | null => {
 	const lines = text.split(/\r?\n/);
-	const endpointPattern = /^\s*endpoint\s+(?:(?:invoke|enlist|deploy)\s+)?(?:(?:ephemeral|persistent|readonly|static|dynamic|pure)\s+)?([A-Za-z_][A-Za-z0-9_]*)\b/;
-	const functionPattern = /^\s*function\s+(?:(?:persistent|ephemeral|readonly|static|dynamic|pure)\s+)?([A-Za-z_][A-Za-z0-9_]*)\b/;
+	const endpointPattern = /^\s*endpoint\s+(?:(?:invoke|enlist|deploy)\s+)?(?:(?:pure|static|dynamic|asset)\s+)?([A-Za-z_][A-Za-z0-9_]*)\b/;
+	const functionPattern = /^\s*function\s+(?:(?:pure|static|dynamic|asset)\s+)?([A-Za-z_][A-Za-z0-9_]*)\b/;
 	const methodPattern = /^\s*method\s+(?:(?:mutate|observe)\s+)?([A-Za-z_][A-Za-z0-9_!]*)\b/;
 	const classPattern = /^\s*class\s+([A-Za-z_][A-Za-z0-9_]*)\b(?=\s*:)/;
 	const eventPattern = /^\s*event\s+([A-Za-z_][A-Za-z0-9_]*)\b/;
@@ -3263,18 +4172,26 @@ const checkTypeLiteralProperties = (
 				}
 			}
 
-			for (const property of parseLiteralProperties(literal.bodyText, literal.bodyStart)) {
-				if (!allowed.has(property.name)) {
-					diagnostics.push({
-						severity: DiagnosticSeverity.Error,
-						range: {
-							start: { line: lineIndex, character: property.start },
-							end: { line: lineIndex, character: property.start + property.name.length }
-						},
-						message: `'${property.name}' is not a member of ${literal.typeName}`,
-						source: 'ex'
-					});
+			for (const entry of parseLiteralEntries(literal.bodyText, literal.bodyStart)) {
+				if (allowed.has(entry.name)) {
+					continue;
 				}
+
+				// A bare name is the field-name shorthand, so the compiler reads it
+				// as a field first and only then as the variable supplying the value.
+				const message = entry.kind === "shorthand"
+					? `field '${entry.name}' not found in ${literal.typeName}; use '<field>: ${entry.name}' to name the field explicitly`
+					: `'${entry.name}' is not a member of ${literal.typeName}`;
+
+				diagnostics.push({
+					severity: DiagnosticSeverity.Error,
+					range: {
+						start: { line: lineIndex, character: entry.start },
+						end: { line: lineIndex, character: entry.start + entry.name.length }
+					},
+					message,
+					source: 'ex'
+				});
 			}
 		}
 	}
@@ -3403,6 +4320,142 @@ const checkStateFieldReferences = (
 			const payerError = validateStateIdentity(info.payerRef, lineIndex, payerStart, text, callableIndex, classIndex);
 			if (payerError) {
 				diagnostics.push(payerError);
+			}
+		}
+	}
+};
+
+// isAtomicStateType reports whether a state field lives in atomic storage —
+// maps, arrays and classes are scattered across storage slots and can only be
+// moved with `gather` / `disperse`, never assigned whole.
+const isAtomicStateType = (fieldType: string, classIndex: ClassIndex): boolean => {
+	const trimmed = fieldType.trim();
+	if (trimmed.startsWith("Map[") || trimmed.startsWith("[")) {
+		return true;
+	}
+	const bareName = trimmed.match(/^([A-Za-z_][A-Za-z0-9_]*)$/);
+	return bareName !== null && classIndex.classes.has(bareName[1]);
+};
+
+// checkWholeStateWrites catches `mutate value -> Module.Logic.collection`, where
+// the target is a map, array or class. The compiler answers that with "Can't
+// store a non-dispersable value into variable '<field>'"; the read-modify-write
+// block form (`mutate c <- ...:` with `disperse` inside) is the way to do it.
+const checkWholeStateWrites = (
+	text: string,
+	stateIndex: StateIndex,
+	classIndex: ClassIndex,
+	diagnostics: Diagnostic[]
+): void => {
+	if (!stateIndex.moduleName) {
+		return;
+	}
+
+	const lines = text.split(/\r?\n/);
+
+	for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+		const scanLine = stripCommentsAndStrings(lines[lineIndex]);
+		const info = extractMutateObserveInfo(scanLine);
+		if (info.verb !== "mutate" || !info.stateRef || !info.stateRange) {
+			continue;
+		}
+
+		// Only the direct write form assigns a whole value; `mutate x <- path:`
+		// opens a block that modifies the field in place, which is allowed.
+		const arrows = findMutateObserveArrows(scanLine, 0);
+		if (arrows.length === 0 || arrows[arrows.length - 1].token !== "->") {
+			continue;
+		}
+
+		for (const ref of splitTopLevelSegments(info.stateRef, ",")) {
+			const parsedRef = parseStateFieldRef(ref.text);
+			if (!parsedRef || parsedRef.rootName !== stateIndex.moduleName) {
+				continue;
+			}
+
+			const isLogic = parsedRef.actorRef === "Logic";
+			const fieldTypes = isLogic ? stateIndex.logicFieldTypes : stateIndex.actorFieldTypes;
+			const fieldType = fieldTypes.get(parsedRef.fieldName);
+			if (!fieldType || !isAtomicStateType(fieldType, classIndex)) {
+				continue;
+			}
+
+			const fieldStart = info.stateRange.start + ref.start + parsedRef.fieldStart;
+			diagnostics.push({
+				severity: DiagnosticSeverity.Error,
+				range: {
+					start: { line: lineIndex, character: fieldStart },
+					end: { line: lineIndex, character: fieldStart + parsedRef.fieldName.length }
+				},
+				message: `'${parsedRef.fieldName}' is ${fieldType}, which lives in atomic storage and cannot be assigned whole`
+					+ `. Open a block instead — 'mutate ${parsedRef.fieldName} <- ${ref.text}:' — and use 'disperse' inside it`,
+				source: 'ex'
+			});
+		}
+	}
+};
+
+// checkPayerClauses enforces the rules around the `payer` clause the compiler
+// gained with PISA 0.8.0: it is a mutate-only clause, it may only re-bill a
+// logic-state write, and it needs a 0.8.0 target. The payer expression itself
+// (Logic / Sender / Actor(...)) is validated alongside state identities in
+// checkStateFieldReferences.
+const checkPayerClauses = (
+	text: string,
+	pisaVersion: PisaVersion,
+	diagnostics: Diagnostic[]
+): void => {
+	const lines = text.split(/\r?\n/);
+
+	for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+		const line = lines[lineIndex];
+		const commentIndex = line.indexOf("//");
+		const scanLine = commentIndex >= 0 ? line.slice(0, commentIndex) : line;
+		const info = extractMutateObserveInfo(scanLine);
+		if (!info.payerRef || !info.payerRange) {
+			continue;
+		}
+
+		const payerKeyword = scanLine.lastIndexOf("payer", info.payerRange.start);
+		const range = {
+			start: { line: lineIndex, character: payerKeyword >= 0 ? payerKeyword : info.payerRange.start },
+			end: { line: lineIndex, character: info.payerRange.end }
+		};
+
+		if (info.verb === "observe") {
+			diagnostics.push({
+				severity: DiagnosticSeverity.Error,
+				range,
+				message: "payer is only allowed on mutate; observe does not consume storage",
+				source: 'ex'
+			});
+			continue;
+		}
+
+		if (!isPisaAtLeast(pisaVersion, "0.8.0")) {
+			diagnostics.push({
+				severity: DiagnosticSeverity.Error,
+				range,
+				message: `payer for state logic volume is not supported in PISA version ${pisaVersion}, requires 0.8.0`,
+				source: 'ex'
+			});
+			continue;
+		}
+
+		if (!info.stateRef) {
+			continue;
+		}
+
+		for (const ref of splitTopLevelSegments(info.stateRef, ",")) {
+			const parsedRef = parseStateFieldRef(ref.text);
+			if (parsedRef && parsedRef.actorRef !== "Logic") {
+				diagnostics.push({
+					severity: DiagnosticSeverity.Error,
+					range,
+					message: "type mismatch: payer can only be set on logic state",
+					source: 'ex'
+				});
+				break;
 			}
 		}
 	}
@@ -3882,6 +4935,36 @@ const resolveVariableTypeInfo = (
 	return result;
 };
 
+// inferSuperglobalReturnType types a whole-expression call on a superglobal.
+// Only single-return methods produce a type: StorageResult yields a pair, which
+// the caller destructures rather than assigning as one value.
+const inferSuperglobalReturnType = (
+	trimmed: string
+): { typeName: string; isCollection: boolean } | null => {
+	const plain = trimmed.match(/^(Environment|Invocation|Builtins)\s*\.\s*([A-Za-z_]\w*)\s*\(/);
+	if (plain) {
+		const signature = SUPERGLOBAL_METHODS.get(plain[1])?.get(plain[2]);
+		return signature && signature.returns.length === 1
+			? { typeName: signature.returns[0], isCollection: false }
+			: null;
+	}
+
+	const actor = trimmed.match(/^Actor\s*\(/);
+	if (actor) {
+		const closeParen = findMatchingCloseParen(trimmed, actor[0].length - 1);
+		if (closeParen < 0) {
+			return null;
+		}
+		const tail = trimmed.slice(closeParen + 1).match(/^\s*\.\s*([A-Za-z_]\w*)\s*\(/);
+		const signature = tail ? ACTOR_METHODS.get(tail[1]) : undefined;
+		return signature && signature.returns.length === 1
+			? { typeName: signature.returns[0], isCollection: false }
+			: null;
+	}
+
+	return null;
+};
+
 const inferExpressionType = (
 	exprText: string,
 	lineIndex: number,
@@ -3907,6 +4990,12 @@ const inferExpressionType = (
 	const castMatch = trimmed.match(/^(Bool|String|Identifier|U64|I64|U256|Bytes)\s*\(/);
 	if (castMatch) {
 		return { typeName: castMatch[1], isCollection: false };
+	}
+
+	// Superglobal method call: Environment.Timestamp(), Actor(id).Exists(), ...
+	const superglobalReturn = inferSuperglobalReturnType(trimmed);
+	if (superglobalReturn) {
+		return superglobalReturn;
 	}
 
 	// Class literal: ClassName{...}
@@ -4124,7 +5213,7 @@ const checkFieldAccess = (
 				}
 			} else if (/[A-Za-z0-9_]/.test(scanLine[beforeDot])) {
 				// Direct access: identifier.field
-				let identEnd = beforeDot + 1;
+				const identEnd = beforeDot + 1;
 				let identStart = beforeDot;
 				while (identStart > 0 && /[A-Za-z0-9_]/.test(scanLine[identStart - 1])) { identStart--; }
 				if (/[A-Za-z_]/.test(scanLine[identStart])) {
@@ -4213,7 +5302,7 @@ const checkFStringChunks = (
 						receiverName = chunkText.slice(identStart, identEnd);
 					}
 				} else if (/[A-Za-z0-9_]/.test(chunkText[beforeDot])) {
-					let identEnd = beforeDot + 1;
+					const identEnd = beforeDot + 1;
 					let identStart = beforeDot;
 					while (identStart > 0 && /[A-Za-z0-9_]/.test(chunkText[identStart - 1])) { identStart--; }
 					if (/[A-Za-z_]/.test(chunkText[identStart])) {
@@ -4252,7 +5341,7 @@ const checkFStringChunks = (
 const isCocoAssetFile = (text: string): boolean => {
 	for (const line of text.split(/\r?\n/)) {
 		const trimmed = line.trim();
-		if (!trimmed || trimmed.startsWith("//")) continue;
+		if (!trimmed || trimmed.startsWith("//")) {continue;}
 		return /^coco\s+asset\s+/.test(trimmed);
 	}
 	return false;

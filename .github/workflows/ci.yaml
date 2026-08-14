@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  build:
+    name: Build, lint and test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type-check
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Bundle
+        run: npm run bundle
+
+      - name: Fixture suite
+        run: npm test
+
+      # Cross-checks the fixtures against the real compiler. Skips itself when
+      # `coco` is not on PATH, so it stays green without the toolchain.
+      - name: Compiler cross-check
+        run: npm run test:compile
+
+      - name: Package VSIX
+        run: npx vsce package -o "./cocolang-ci.vsix"

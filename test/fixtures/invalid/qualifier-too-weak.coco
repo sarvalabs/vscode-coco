@@ -1,0 +1,15 @@
+coco QualifierTooWeak
+
+class Person:
+    field name String
+    field age U64
+
+state logic:
+    name String
+
+state actor:
+    tag String
+
+// EXPECT: endpoint 'SetName' is declared as 'static', but it requires state qualifier 'dynamic'
+endpoint static SetName(n String):
+    mutate n -> QualifierTooWeak.Logic.name

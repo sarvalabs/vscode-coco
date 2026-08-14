@@ -1,0 +1,81 @@
+// Cross-logic calls through interfaces. The caller's state qualifier is the
+// maximum over everything its body does, and interface members carry their own:
+// a `dynamic` endpoint or any `asset:` member forces the caller to `dynamic`,
+// while a `static` one only reaches `static`.
+
+coco CrossLogic
+
+class Info:
+    field name    String
+    field version U64
+
+interface Ledger:
+    state logic:
+        info    Info
+        balance U256
+    endpoint:
+        dynamic Credit(to Identifier, amount U256) -> (balance U256)
+        static  Supply() -> (supply U256)
+        GetInfo() -> (info Info)
+    asset:
+        Mint(token_id U64, beneficiary Identifier, amount U256)
+        BalanceOf(token_id U64, address Identifier) -> (balance U256)
+
+state logic:
+    ledger_id Identifier
+    calls     U64
+
+endpoint deploy Init(ledger_id Identifier):
+    mutate ledger_id -> CrossLogic.Logic.ledger_id payer Logic
+    mutate U64(0) -> CrossLogic.Logic.calls payer Logic
+
+// The blockless observe assigns into a variable that already exists — here a
+// pre-declared memory variable, since the endpoint returns something else.
+function static LedgerAddress() -> (ledger_id Identifier):
+    observe ledger_id <- CrossLogic.Logic.ledger_id
+
+// Reads external state through the interface -> static.
+endpoint static RemoteSupply() -> (supply U256):
+    memory ledger_id Identifier
+    observe ledger_id <- CrossLogic.Logic.ledger_id
+    memory ledger = Ledger(ledger_id)
+    supply = (supply) <- ledger.Supply()
+
+// An interface endpoint with no qualifier counts as static.
+endpoint static RemoteInfo() -> (info Info):
+    memory ledger_id = (ledger_id) <- LedgerAddress()
+    memory ledger = Ledger(ledger_id)
+    info = (info) <- ledger.GetInfo()
+
+// Observing the remote logic's state directly is also static.
+endpoint static RemoteName() -> (name String):
+    memory ledger_id = (ledger_id) <- LedgerAddress()
+    memory ledger = Ledger(ledger_id)
+    observe remote_info <- ledger.Logic.info:
+        memory info Info
+        gather info <- remote_info
+        name = info.name
+
+// Calling a dynamic interface endpoint makes this endpoint dynamic, even though
+// it never mutates its own state.
+endpoint dynamic RemoteCredit(to Identifier, amount U256) -> (balance U256):
+    memory ledger_id = (ledger_id) <- LedgerAddress()
+    memory ledger = Ledger(ledger_id)
+    balance = ledger.Credit(to: to, amount: amount)
+
+// An interface asset operation is always dynamic.
+endpoint dynamic RemoteMint(beneficiary Identifier, amount U256):
+    memory ledger_id = (ledger_id) <- LedgerAddress()
+    memory ledger = Ledger(ledger_id)
+    ledger.Mint(token_id: 0, beneficiary: beneficiary, amount: amount)
+
+// dynamic outranks the static implied by the local observe.
+endpoint dynamic CountedCredit(to Identifier, amount U256) -> (balance U256):
+    memory ledger_id = (ledger_id) <- LedgerAddress()
+    memory ledger = Ledger(ledger_id)
+    balance = ledger.Credit(to: to, amount: amount)
+    mutate calls <- CrossLogic.Logic.calls:
+        calls += 1
+
+endpoint static Calls() -> (calls U64):
+    observe calls <- CrossLogic.Logic.calls

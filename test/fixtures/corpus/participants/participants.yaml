@@ -1,0 +1,453 @@
+syntax: 1
+engine:
+  kind: PISA
+  flags: []
+  version: 0.8.0
+kind: logic
+elements:
+- ptr: 0
+  kind: literal
+  data:
+    type: string
+    value: '0x066e6f742061207061727469636970616e74206f66207468697320696e746572616374696f6e'
+- ptr: 1
+  kind: literal
+  data:
+    type: string
+    value: '0x0672656164'
+- ptr: 2
+  kind: literal
+  data:
+    type: string
+    value: '0x06726561642d6f6e6c7920616363657373'
+- ptr: 3
+  kind: literal
+  data:
+    type: string
+    value: '0x067772697465'
+- ptr: 4
+  kind: literal
+  data:
+    type: string
+    value: '0x067265616420616e6420777269746520616363657373'
+- ptr: 5
+  kind: literal
+  data:
+    type: string
+    value: '0x06756e6b6e6f776e20616363657373206c6576656c'
+- ptr: 6
+  kind: typedef
+  data: '[]u64'
+- ptr: 7
+  kind: event
+  data:
+    name: Checked
+    topics: 1
+    fields:
+    - slot: 0
+      label: participant
+      type: identifier
+    - slot: 1
+      label: result
+      type: string
+- ptr: 8
+  kind: state
+  data:
+    mode: logic
+    fields:
+    - slot: 0
+      label: checks
+      type: u64
+- ptr: 9
+  kind: state
+  data:
+    mode: actor
+    fields:
+    - slot: 0
+      label: label
+      type: string
+- ptr: 10
+  deps:
+  - 8
+  kind: callable
+  data:
+    name: Init
+    mode: dynamic
+    kind: deploy
+    accepts: []
+    returns: []
+    executes:
+      asm:
+      - LOGIC $0
+      - LLOAD $1 &0
+      - VOLPAY $1 $0
+      - PMAKE $0 &5
+      - DISPER $1 $0
+      - STORE $1
+    catches: []
+- ptr: 11
+  deps:
+  - 9
+  kind: callable
+  data:
+    name: Register
+    mode: dynamic
+    kind: enlist
+    accepts:
+    - slot: 0
+      label: label
+      type: string
+    returns: []
+    executes:
+      asm:
+      - ORIGIN $0
+      - ALOAD $1 $0 &0
+      - OBTAIN $2 &0
+      - DISPER $1 $2
+      - STORE $1
+    catches: []
+- ptr: 12
+  kind: callable
+  data:
+    name: IsParticipant
+    mode: pure
+    kind: invoke
+    accepts:
+    - slot: 0
+      label: participant
+      type: identifier
+    returns:
+    - slot: 0
+      label: exists
+      type: bool
+    executes:
+      asm:
+      - OBTAIN $0 &0
+      - ACREXIST $0 $0
+      - YIELD $0 &0
+    catches: []
+- ptr: 13
+  kind: callable
+  data:
+    name: SenderSigned
+    mode: pure
+    kind: invoke
+    accepts: []
+    returns:
+    - slot: 0
+      label: signed
+      type: bool
+    executes:
+      asm:
+      - ORIGIN $0
+      - ACRSIGN $0 $0
+      - YIELD $0 &0
+    catches: []
+- ptr: 14
+  deps:
+  - 0
+  kind: callable
+  data:
+    name: CheckSigned
+    mode: pure
+    kind: invoke
+    accepts:
+    - slot: 0
+      label: participant
+      type: identifier
+    returns:
+    - slot: 0
+      label: signed
+      type: bool
+    executes:
+      asm:
+      - OBTAIN $0 &0
+      - ACREXIST $1 $0
+      - LDPTR1 $2 0x7
+      - JUMPI $2 $1
+      - LDPTR1 $1 0x0
+      - LMAKE $1 $1
+      - THROW $1
+      - DEST
+      - ACRSIGN $0 $0
+      - YIELD $0 &0
+    catches: []
+- ptr: 15
+  kind: callable
+  data:
+    name: Claim
+    mode: pure
+    kind: invoke
+    accepts:
+    - slot: 0
+      label: code
+      type: string
+    returns:
+    - slot: 0
+      label: proof
+      type: bytes
+    executes:
+      asm:
+      - ORIGIN $0
+      - OBTAIN $1 &0
+      - ACRPARAM $0 $0 $1
+      - YIELD $0 &0
+    catches: []
+- ptr: 16
+  deps:
+  - 1
+  - 2
+  - 3
+  - 4
+  - 5
+  kind: callable
+  data:
+    name: Classify
+    mode: pure
+    kind: invoke
+    accepts:
+    - slot: 0
+      label: kind
+      type: string
+    returns:
+    - slot: 0
+      label: description
+      type: string
+    executes:
+      asm:
+      - OBTAIN $0 &0
+      - LDPTR1 $1 0x1
+      - LMAKE $1 $1
+      - EQ $1 $0 $1
+      - LDPTR1 $2 0x8
+      - JUMPI $2 $1
+      - LDPTR1 $2 0xe
+      - JUMP $2
+      - DEST
+      - LDPTR1 $1 0x2
+      - LMAKE $1 $1
+      - YIELD $1 &0
+      - LDPTR1 $2 0x20
+      - JUMP $2
+      - DEST
+      - LDPTR1 $1 0x3
+      - LMAKE $1 $1
+      - EQ $0 $0 $1
+      - LDPTR1 $1 0x16
+      - JUMPI $1 $0
+      - LDPTR1 $1 0x1c
+      - JUMP $1
+      - DEST
+      - LDPTR1 $0 0x4
+      - LMAKE $0 $0
+      - YIELD $0 &0
+      - LDPTR1 $1 0x20
+      - JUMP $1
+      - DEST
+      - LDPTR1 $0 0x5
+      - LMAKE $0 $0
+      - YIELD $0 &0
+      - DEST
+    catches: []
+- ptr: 17
+  deps:
+  - 6
+  kind: callable
+  data:
+    name: SumTo
+    mode: pure
+    kind: invoke
+    accepts:
+    - slot: 0
+      label: n
+      type: u64
+    returns:
+    - slot: 0
+      label: total
+      type: u64
+    executes:
+      asm:
+      - PMAKE $0 &5
+      - OBTAIN $1 &0
+      - COPY $2 $1
+      - LDPTR1 $3 0x6
+      - MAKE $3 $3
+      - PMAKE $4 &5
+      - PMAKE $5 &5
+      - DEST
+      - EQ $6 $2 $5
+      - LDPTR1 $7 0x10
+      - JUMPI $7 $6
+      - APPEND $3 $4
+      - INCR $4
+      - DECR $2
+      - LDPTR1 $7 0x7
+      - JUMP $7
+      - DEST
+      - PMAKE $2 &5
+      - SIZE $4 $3
+      - DEST
+      - LT $5 $2 $4
+      - NOT $5 $5
+      - LDPTR1 $6 0x26
+      - JUMPI $6 $5
+      - PMAKE $5 &5
+      - EQ $5 $2 $5
+      - NOT $5 $5
+      - LDPTR1 $7 0x1f
+      - JUMPI $7 $5
+      - LDPTR1 $5 0x22
+      - JUMP $5
+      - DEST
+      - ADD $5 $0 $2
+      - COPY $0 $5
+      - DEST
+      - INCR $2
+      - LDPTR1 $6 0x13
+      - JUMP $6
+      - DEST
+      - YIELD $0 &0
+    catches: []
+- ptr: 18
+  kind: callable
+  data:
+    name: Digest
+    mode: pure
+    kind: invoke
+    accepts:
+    - slot: 0
+      label: data
+      type: bytes
+    returns:
+    - slot: 0
+      label: hash
+      type: u256
+    - slot: 1
+      label: checked
+      type: bool
+    executes:
+      asm:
+      - CARGS $0
+      - OBTAIN $1 &0
+      - SETFLD $0 &0 $1
+      - LDPTR1 $1 0x0
+      - CALLB $0 $1 $0
+      - GETFLD $0 $0 &0
+      - YIELD $0 &0
+      - PMAKE $0 &1
+      - NOT $0 $0
+      - YIELD $0 &1
+    catches: []
+- ptr: 19
+  kind: callable
+  data:
+    name: Context
+    mode: pure
+    kind: invoke
+    accepts: []
+    returns:
+    - slot: 0
+      label: timestamp
+      type: u64
+    - slot: 1
+      label: invocation
+      type: identifier
+    - slot: 2
+      label: caller
+      type: identifier
+    executes:
+      asm:
+      - TIMESTAMP $0
+      - YIELD $0 &0
+      - ACTIONID $0
+      - YIELD $0 &1
+      - CALLER $0
+      - YIELD $0 &2
+    catches: []
+- ptr: 20
+  deps:
+  - 7
+  - 8
+  kind: callable
+  data:
+    name: RecordCheck
+    mode: dynamic
+    kind: invoke
+    accepts:
+    - slot: 0
+      label: result
+      type: string
+    returns:
+    - slot: 0
+      label: added
+      type: u64
+    - slot: 1
+      label: removed
+      type: u64
+    executes:
+      asm:
+      - LOGIC $0
+      - LLOAD $1 &0
+      - VOLPAY $1 $0
+      - GATHER $0 $1
+      - INCR $0
+      - DISPER $1 $0
+      - STORE $1
+      - CARGS $0
+      - ORIGIN $1
+      - SETFLD $0 &0 $1
+      - OBTAIN $1 &0
+      - SETFLD $0 &1 $1
+      - LDPTR1 $1 0x7
+      - EVMAKE $0 $1 $0
+      - LOGIC $1
+      - ID $1 $1
+      - EMIT $1 $0
+      - LOGIC $0
+      - LOGIC $1
+      - VOLRES $0 $1 $0 $1
+      - YIELD $0 &0
+      - YIELD $1 &1
+    catches: []
+- ptr: 21
+  deps:
+  - 9
+  kind: callable
+  data:
+    name: LabelOf
+    mode: static
+    kind: invoke
+    accepts:
+    - slot: 0
+      label: account
+      type: identifier
+    returns:
+    - slot: 0
+      label: label
+      type: string
+    executes:
+      asm:
+      - OBTAIN $0 &0
+      - ALOAD $1 $0 &0
+      - YIELD $1 &0
+      - DUMP $1
+    catches: []
+- ptr: 22
+  deps:
+  - 8
+  kind: callable
+  data:
+    name: Checks
+    mode: static
+    kind: invoke
+    accepts: []
+    returns:
+    - slot: 0
+      label: checks
+      type: u64
+    executes:
+      asm:
+      - LLOAD $0 &0
+      - YIELD $0 &0
+      - DUMP $0
+    catches: []

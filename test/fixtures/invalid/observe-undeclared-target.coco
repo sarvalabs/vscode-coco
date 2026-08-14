@@ -1,0 +1,17 @@
+coco ObserveUndeclaredTarget
+
+class Person:
+    field name String
+    field age U64
+
+state logic:
+    name String
+
+state actor:
+    tag String
+
+// EXPECT: 'undeclared' is not defined in this scope
+// EXPECT: 'undeclared' is not defined in this scope
+endpoint static K() -> (v String):
+    observe undeclared <- ObserveUndeclaredTarget.Logic.name
+    v = undeclared

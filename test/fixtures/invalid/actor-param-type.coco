@@ -1,0 +1,15 @@
+coco ActorParamType
+
+class Person:
+    field name String
+    field age U64
+
+state logic:
+    name String
+
+state actor:
+    tag String
+
+// EXPECT: argument 'name' of 'Param' expects type String, found U64
+endpoint pure H(id Identifier) -> (b Bytes):
+    b = Actor(id).Param(U64(1))

@@ -1,0 +1,143 @@
+{
+    "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+    "name": "Coco Nut",
+    "scopeName": "source.coconut",
+    "patterns": [
+        {
+            "include": "#comment"
+        },
+        {
+            "include": "#table"
+        },
+        {
+            "include": "#key_value"
+        },
+        {
+            "include": "#constants"
+        },
+        {
+            "include": "#strings"
+        }
+    ],
+    "repository": {
+        "comment": {
+            "patterns": [
+                {
+                    "comment": "Line comment",
+                    "name": "comment.line.number-sign.coconut",
+                    "match": "#.*$"
+                }
+            ]
+        },
+        "table": {
+            "patterns": [
+                {
+                    "comment": "Array of tables: [[name]]",
+                    "match": "^\\s*(\\[\\[)\\s*([^\\]]+?)\\s*(\\]\\])",
+                    "captures": {
+                        "1": {
+                            "name": "punctuation.definition.table.coconut"
+                        },
+                        "2": {
+                            "name": "entity.name.section.coconut"
+                        },
+                        "3": {
+                            "name": "punctuation.definition.table.coconut"
+                        }
+                    }
+                },
+                {
+                    "comment": "Table header: [target.pisa]",
+                    "match": "^\\s*(\\[)\\s*([^\\]]+?)\\s*(\\])",
+                    "captures": {
+                        "1": {
+                            "name": "punctuation.definition.table.coconut"
+                        },
+                        "2": {
+                            "name": "entity.name.section.coconut"
+                        },
+                        "3": {
+                            "name": "punctuation.definition.table.coconut"
+                        }
+                    }
+                }
+            ]
+        },
+        "key_value": {
+            "patterns": [
+                {
+                    "comment": "Known coco.nut keys get a distinct scope",
+                    "match": "^\\s*(version|name|arch|os|format|output|license|repository|authors|url|env|big_int_as_hex|bytes_as_hex)\\s*(=)",
+                    "captures": {
+                        "1": {
+                            "name": "support.type.property-name.coconut"
+                        },
+                        "2": {
+                            "name": "keyword.operator.assignment.coconut"
+                        }
+                    }
+                },
+                {
+                    "comment": "Any other key",
+                    "match": "^\\s*(\"[^\"]*\"|[A-Za-z0-9_.-]+)\\s*(=)",
+                    "captures": {
+                        "1": {
+                            "name": "variable.other.property.coconut"
+                        },
+                        "2": {
+                            "name": "keyword.operator.assignment.coconut"
+                        }
+                    }
+                }
+            ]
+        },
+        "constants": {
+            "patterns": [
+                {
+                    "comment": "Booleans",
+                    "name": "constant.language.coconut",
+                    "match": "\\b(true|false)\\b"
+                },
+                {
+                    "comment": "Numbers",
+                    "name": "constant.numeric.coconut",
+                    "match": "\\b((0x[0-9a-fA-F_]+)|([0-9][0-9_]*(\\.[0-9_]+)?([eE][-+]?[0-9_]+)?))\\b"
+                }
+            ]
+        },
+        "strings": {
+            "patterns": [
+                {
+                    "comment": "Multi-line basic string",
+                    "name": "string.quoted.triple.coconut",
+                    "begin": "\"\"\"",
+                    "end": "\"\"\""
+                },
+                {
+                    "comment": "Multi-line literal string",
+                    "name": "string.quoted.triple.literal.coconut",
+                    "begin": "'''",
+                    "end": "'''"
+                },
+                {
+                    "comment": "Basic string",
+                    "name": "string.quoted.double.coconut",
+                    "begin": "\"",
+                    "end": "\"",
+                    "patterns": [
+                        {
+                            "name": "constant.character.escape.coconut",
+                            "match": "\\\\."
+                        }
+                    ]
+                },
+                {
+                    "comment": "Literal string",
+                    "name": "string.quoted.single.coconut",
+                    "begin": "'",
+                    "end": "'"
+                }
+            ]
+        }
+    }
+}

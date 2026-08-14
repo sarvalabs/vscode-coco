@@ -1,0 +1,15 @@
+coco QualifierTooStrong
+
+class Person:
+    field name String
+    field age U64
+
+state logic:
+    name String
+
+state actor:
+    tag String
+
+// EXPECT: endpoint 'GetName' is declared as 'dynamic', but it requires state qualifier 'static'
+endpoint dynamic GetName() -> (name String):
+    observe name <- QualifierTooStrong.Logic.name

@@ -1,16 +1,22 @@
+# Only the two esbuild bundles and the static assets ship. Everything that
+# produces them stays behind.
+.github/**
+.kb/**
+.claude/**
 .vscode/**
 .vscode-test/**
-.gitignore
-vsc-extension-quickstart.md
+node_modules/**
+client/**
+server/**
+test/**
+dist/**/*.map
+esbuild.mjs
+eslint.config.mjs
+tsconfig.json
+package-lock.json
 **/*.ts
-**/*.map
-**/tsconfig.json
-**/tsconfig.base.json
-.travis.yml
-client/node_modules/**
-!client/node_modules/vscode-jsonrpc/**
-!client/node_modules/vscode-languageclient/**
-!client/node_modules/vscode-languageserver-protocol/**
-!client/node_modules/vscode-languageserver-types/**
-!client/node_modules/{minimatch,brace-expansion,concat-map,balanced-match}/**
-!client/node_modules/{semver,lru-cache,yallist}/**
+**/*.tsbuildinfo
+*.vsix
+.gitignore
+.gitattributes
+.vscodeignore

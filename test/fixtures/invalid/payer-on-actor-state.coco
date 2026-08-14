@@ -1,0 +1,15 @@
+coco PayerOnActorState
+
+class Person:
+    field name String
+    field age U64
+
+state logic:
+    name String
+
+state actor:
+    tag String
+
+// EXPECT: payer can only be set on logic state
+endpoint dynamic D(t String):
+    mutate t -> PayerOnActorState.Sender.tag payer Logic

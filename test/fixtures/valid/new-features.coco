@@ -1,0 +1,138 @@
+// Everything Cocolang 0.9.0 / PISA 0.8.0 added, in its correct form.
+// This file compiles cleanly with `coco compile`, so the language server must
+// report no diagnostics for it.
+
+coco NewFeatures
+
+class Person:
+    field name String
+    field age U64
+
+class Wrapper:
+    field person Person
+    field tags []String
+
+state logic:
+    name String
+    config String
+
+state actor:
+    tag String
+    balance U64
+
+interface Remote:
+    state logic:
+        supply U256
+    endpoint:
+        dynamic Credit(to Identifier, amount U64) -> (balance U64)
+        static Supply() -> (supply U256)
+    asset:
+        Mint(amount U256)
+
+// --- field-name shorthand (stuttering removed) ---------------------------
+
+endpoint pure Make(n String, a U64) -> (p Person):
+    memory name = n
+    memory age = a
+    p = Person{name, age}
+
+endpoint pure Mixed(n String, a U64) -> (p Person):
+    memory name = n
+    p = Person{name, age: a}
+
+endpoint pure Nested(n String, a U64) -> (w Wrapper):
+    memory name = n
+    memory age = a
+    memory person = Person{name, age}
+    memory tags = []String{"vip"}
+    w = Wrapper{person, tags}
+
+endpoint pure InLoop(n U64) -> (out []Person):
+    memory list []Person
+    for age in range(n):
+        memory name = f"p{age}"
+        append(list, Person{name, age})
+    out = list
+
+// --- payer clause --------------------------------------------------------
+
+endpoint deploy Init(name String) -> (added U64, removed U64):
+    mutate name -> NewFeatures.Logic.name payer Logic
+    added, removed = Environment.StorageResult(Identifier(NewFeatures), Identifier(NewFeatures))
+
+endpoint dynamic SetConfig(cfg String, sponsor Identifier):
+    mutate cfg -> NewFeatures.Logic.config payer Actor(sponsor)
+
+endpoint dynamic SetName(n String):
+    mutate n -> NewFeatures.Logic.name payer Sender
+
+endpoint dynamic Grow(suffix String):
+    mutate v <- NewFeatures.Logic.name payer Logic:
+        v += suffix
+
+// --- actor methods -------------------------------------------------------
+
+endpoint pure IsParticipant(participant Identifier) -> (exists Bool):
+    exists = Actor(participant).Exists()
+
+endpoint pure SenderSigned() -> (signed Bool):
+    signed = Actor(Sender).HasSigned()
+
+endpoint pure Claim(code String) -> (proof Bytes):
+    proof = Actor(Sender).Param(code)
+
+endpoint pure CheckSigned(participant Identifier) -> (signed Bool):
+    if !Actor(participant).Exists():
+        throw "not a participant of this interaction"
+    signed = Actor(participant).HasSigned()
+
+// --- environment ---------------------------------------------------------
+
+endpoint enlist Register(tag String) -> (added U64, removed U64):
+    mutate tag -> NewFeatures.Sender.tag
+    added, removed = Environment.StorageResult(Sender, Sender)
+
+endpoint pure Now() -> (ts U64):
+    ts = Environment.Timestamp()
+
+endpoint pure Fuel() -> (capacity U64, available U64):
+    capacity = Environment.EffortCapacity()
+    available = Environment.EffortAvailable()
+
+endpoint pure Hash(data Bytes) -> (digest U256):
+    digest = Builtins.Sha256(data)
+
+// --- state qualifiers ----------------------------------------------------
+
+// Reads only -> static, and it must be written out; omitting it means pure.
+endpoint static Balance(account Identifier) -> (balance U64):
+    observe balance <- NewFeatures.Actor(account).balance
+
+// Writes another actor's state -> dynamic (and needs a storage_mutate grant
+// from `to` at run time; the compiler does not check that).
+endpoint dynamic Credit(to Identifier, amount U64) -> (balance U64):
+    mutate b <- NewFeatures.Actor(to).balance:
+        b += amount
+        balance = b
+
+// Requirement propagates out of a called function.
+function static ReadName() -> (name String):
+    observe name <- NewFeatures.Logic.name
+
+endpoint static NameViaFunction() -> (name String):
+    name = (name) <- ReadName()
+
+// A dynamic interface endpoint makes the caller dynamic.
+endpoint dynamic CreditVia(remote Identifier, to Identifier, amount U64) -> (balance U64):
+    memory r = Remote(remote)
+    balance = r.Credit(to: to, amount: amount)
+
+// A static interface endpoint only makes the caller static.
+endpoint static SupplyVia(remote Identifier) -> (supply U256):
+    memory r = Remote(remote)
+    supply = (supply) <- r.Supply()
+
+// An interface asset operation always makes the caller dynamic.
+endpoint dynamic MintVia(remote Identifier, amount U256):
+    memory r = Remote(remote)
+    r.Mint(amount: amount)

@@ -11,9 +11,9 @@ import {
 let client: LanguageClient;
 
 export const activate = (context: ExtensionContext) => {
-	// The server is implemented in node
+	// The server ships as a sibling bundle, produced by esbuild.mjs.
 	const serverModule = context.asAbsolutePath(
-		path.join('server', 'out', 'server.js')
+		path.join('dist', 'server.js')
 	);
 
 	// If the extension is launched in debug mode then the debug server options are used
@@ -46,11 +46,11 @@ export const activate = (context: ExtensionContext) => {
 
 	// Start the client. This will also launch the server
 	client.start();
-}
+};
 
 export const deactivate = (): Thenable<void> | undefined => {
 	if (!client) {
 		return undefined;
 	}
 	return client.stop();
-}
+};

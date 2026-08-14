@@ -1,0 +1,457 @@
+syntax: 1
+engine:
+  kind: PISA
+  flags: []
+  version: 0.8.0
+kind: logic
+elements:
+- ptr: 0
+  kind: literal
+  data:
+    type: string
+    value: '0x06696e73756666696369656e7420737570706c79'
+- ptr: 1
+  kind: literal
+  data:
+    type: string
+    value: '0x06696e73756666696369656e742062616c616e6365'
+- ptr: 2
+  kind: literal
+  data:
+    type: string
+    value: '0x066e6f7468696e6720746f20636c61696d'
+- ptr: 3
+  kind: typedef
+  data: map[identifier]u256
+- ptr: 4
+  kind: event
+  data:
+    name: Transferred
+    topics: 1
+    fields:
+    - slot: 0
+      label: from
+      type: identifier
+    - slot: 1
+      label: to
+      type: identifier
+    - slot: 2
+      label: amount
+      type: u256
+- ptr: 5
+  kind: state
+  data:
+    mode: logic
+    fields:
+    - slot: 0
+      label: name
+      type: string
+    - slot: 1
+      label: symbol
+      type: string
+    - slot: 2
+      label: supply
+      type: u256
+    - slot: 3
+      label: pending
+      type: map[identifier]u256
+- ptr: 6
+  kind: state
+  data:
+    mode: actor
+    fields:
+    - slot: 0
+      label: balance
+      type: u256
+- ptr: 7
+  deps:
+  - 5
+  kind: callable
+  data:
+    name: Init
+    mode: dynamic
+    kind: deploy
+    accepts:
+    - slot: 0
+      label: name
+      type: string
+    - slot: 1
+      label: symbol
+      type: string
+    returns:
+    - slot: 0
+      label: added
+      type: u64
+    - slot: 1
+      label: removed
+      type: u64
+    executes:
+      asm:
+      - LOGIC $0
+      - LLOAD $1 &0
+      - VOLPAY $1 $0
+      - OBTAIN $0 &0
+      - DISPER $1 $0
+      - STORE $1
+      - LOGIC $0
+      - LLOAD $1 &1
+      - VOLPAY $1 $0
+      - OBTAIN $0 &1
+      - DISPER $1 $0
+      - STORE $1
+      - LOGIC $0
+      - LLOAD $1 &2
+      - VOLPAY $1 $0
+      - PMAKE $0 &5
+      - CARGS $2
+      - CALLM $0 $0 &13 $2
+      - GETFLD $2 $0 &0
+      - DISPER $1 $2
+      - STORE $1
+      - LOGIC $0
+      - LOGIC $1
+      - VOLRES $0 $1 $0 $1
+      - YIELD $0 &0
+      - YIELD $1 &1
+    catches: []
+- ptr: 8
+  deps:
+  - 6
+  kind: callable
+  data:
+    name: Register
+    mode: dynamic
+    kind: enlist
+    accepts: []
+    returns: []
+    executes:
+      asm:
+      - ORIGIN $0
+      - ALOAD $1 $0 &0
+      - PMAKE $2 &5
+      - CARGS $3
+      - CALLM $2 $2 &13 $3
+      - GETFLD $3 $2 &0
+      - DISPER $1 $3
+      - STORE $1
+    catches: []
+- ptr: 9
+  deps:
+  - 0
+  - 5
+  kind: callable
+  data:
+    name: RequireSupply
+    mode: static
+    kind: internal
+    accepts:
+    - slot: 0
+      label: amount
+      type: u256
+    returns: []
+    executes:
+      asm:
+      - PMAKE $0 &7
+      - LLOAD $1 &2
+      - GATHER $0 $1
+      - DUMP $1
+      - OBTAIN $1 &0
+      - LT $0 $0 $1
+      - NOT $0 $0
+      - LDPTR1 $1 0xc
+      - JUMPI $1 $0
+      - LDPTR1 $0 0x0
+      - LMAKE $0 $0
+      - THROW $0
+      - DEST
+    catches: []
+- ptr: 10
+  deps:
+  - 5
+  - 6
+  kind: callable
+  data:
+    name: Mint
+    mode: dynamic
+    kind: invoke
+    accepts:
+    - slot: 0
+      label: amount
+      type: u256
+    returns:
+    - slot: 0
+      label: balance
+      type: u256
+    executes:
+      asm:
+      - LLOAD $0 &2
+      - GATHER $1 $0
+      - OBTAIN $2 &0
+      - ADD $1 $1 $2
+      - DISPER $0 $1
+      - STORE $0
+      - ORIGIN $0
+      - ALOAD $1 $0 &0
+      - GATHER $2 $1
+      - OBTAIN $3 &0
+      - ADD $2 $2 $3
+      - YIELD $2 &0
+      - DISPER $1 $2
+      - STORE $1
+    catches: []
+- ptr: 11
+  deps:
+  - 1
+  - 9
+  - 6
+  - 5
+  kind: callable
+  data:
+    name: Burn
+    mode: dynamic
+    kind: invoke
+    accepts:
+    - slot: 0
+      label: amount
+      type: u256
+    returns:
+    - slot: 0
+      label: balance
+      type: u256
+    executes:
+      asm:
+      - CARGS $0
+      - OBTAIN $1 &0
+      - SETFLD $0 &0 $1
+      - LDPTR1 $2 0x9
+      - CALLC $0 $2 $0
+      - ORIGIN $0
+      - ALOAD $2 $0 &0
+      - GATHER $3 $2
+      - LT $4 $3 $1
+      - NOT $4 $4
+      - LDPTR1 $5 0xf
+      - JUMPI $5 $4
+      - LDPTR1 $4 0x1
+      - LMAKE $4 $4
+      - THROW $4
+      - DEST
+      - SUB $4 $3 $1
+      - COPY $3 $4
+      - YIELD $3 &0
+      - DISPER $2 $3
+      - STORE $2
+      - LLOAD $0 &2
+      - GATHER $2 $0
+      - SUB $1 $2 $1
+      - COPY $2 $1
+      - DISPER $0 $2
+      - STORE $0
+    catches: []
+- ptr: 12
+  deps:
+  - 1
+  - 4
+  - 6
+  - 5
+  kind: callable
+  data:
+    name: Send
+    mode: dynamic
+    kind: invoke
+    accepts:
+    - slot: 0
+      label: to
+      type: identifier
+    - slot: 1
+      label: amount
+      type: u256
+    returns: []
+    executes:
+      asm:
+      - ORIGIN $0
+      - ALOAD $1 $0 &0
+      - GATHER $2 $1
+      - OBTAIN $3 &1
+      - LT $4 $2 $3
+      - NOT $4 $4
+      - LDPTR1 $5 0xb
+      - JUMPI $5 $4
+      - LDPTR1 $4 0x1
+      - LMAKE $4 $4
+      - THROW $4
+      - DEST
+      - SUB $3 $2 $3
+      - COPY $2 $3
+      - DISPER $1 $2
+      - STORE $1
+      - LLOAD $0 &3
+      - OBTAIN $1 &0
+      - HASKEY $2 $0 $1
+      - NOT $2 $2
+      - LDPTR1 $3 0x1d
+      - JUMPI $3 $2
+      - GETKEY $2 $0 $1
+      - OBTAIN $4 &1
+      - ADD $2 $2 $4
+      - GENKEY $4 $0 $1
+      - SETKEY $0 $1 $2
+      - LDPTR1 $3 0x21
+      - JUMP $3
+      - DEST
+      - OBTAIN $2 &1
+      - GENKEY $3 $0 $1
+      - SETKEY $0 $1 $2
+      - DEST
+      - STORE $0
+      - CARGS $0
+      - ORIGIN $1
+      - SETFLD $0 &0 $1
+      - OBTAIN $1 &0
+      - SETFLD $0 &1 $1
+      - OBTAIN $1 &1
+      - SETFLD $0 &2 $1
+      - LDPTR1 $1 0x4
+      - EVMAKE $0 $1 $0
+      - LOGIC $1
+      - ID $1 $1
+      - EMIT $1 $0
+    catches: []
+- ptr: 13
+  deps:
+  - 2
+  - 5
+  - 6
+  kind: callable
+  data:
+    name: Claim
+    mode: dynamic
+    kind: invoke
+    accepts: []
+    returns:
+    - slot: 0
+      label: claimed
+      type: u256
+    executes:
+      asm:
+      - PMAKE $0 &7
+      - LLOAD $1 &3
+      - ORIGIN $2
+      - HASKEY $2 $1 $2
+      - LDPTR1 $3 0x9
+      - JUMPI $3 $2
+      - LDPTR1 $2 0x2
+      - LMAKE $2 $2
+      - THROW $2
+      - DEST
+      - ORIGIN $2
+      - GETKEY $2 $1 $2
+      - COPY $0 $2
+      - PMAKE $2 &5
+      - CARGS $3
+      - CALLM $2 $2 &13 $3
+      - GETFLD $3 $2 &0
+      - ORIGIN $2
+      - GENKEY $4 $1 $2
+      - SETKEY $1 $2 $3
+      - STORE $1
+      - ORIGIN $1
+      - ALOAD $2 $1 &0
+      - GATHER $3 $2
+      - ADD $4 $3 $0
+      - COPY $3 $4
+      - DISPER $2 $3
+      - STORE $2
+      - YIELD $0 &0
+    catches: []
+- ptr: 14
+  deps:
+  - 6
+  kind: callable
+  data:
+    name: BalanceOf
+    mode: static
+    kind: invoke
+    accepts:
+    - slot: 0
+      label: account
+      type: identifier
+    returns:
+    - slot: 0
+      label: balance
+      type: u256
+    executes:
+      asm:
+      - OBTAIN $0 &0
+      - ALOAD $1 $0 &0
+      - YIELD $1 &0
+      - DUMP $1
+    catches: []
+- ptr: 15
+  deps:
+  - 5
+  kind: callable
+  data:
+    name: Info
+    mode: static
+    kind: invoke
+    accepts: []
+    returns:
+    - slot: 0
+      label: name
+      type: string
+    - slot: 1
+      label: symbol
+      type: string
+    - slot: 2
+      label: supply
+      type: u256
+    executes:
+      asm:
+      - LLOAD $0 &0
+      - LLOAD $1 &1
+      - YIELD $0 &0
+      - DUMP $0
+      - YIELD $1 &1
+      - DUMP $1
+      - LLOAD $0 &2
+      - YIELD $0 &2
+      - DUMP $0
+    catches: []
+- ptr: 16
+  deps:
+  - 5
+  kind: callable
+  data:
+    name: PendingFor
+    mode: static
+    kind: invoke
+    accepts:
+    - slot: 0
+      label: account
+      type: identifier
+    returns:
+    - slot: 0
+      label: amount
+      type: u256
+    executes:
+      asm:
+      - LLOAD $0 &3
+      - OBTAIN $1 &0
+      - HASKEY $2 $0 $1
+      - NOT $2 $2
+      - LDPTR1 $3 0xa
+      - JUMPI $3 $2
+      - GETKEY $1 $0 $1
+      - YIELD $1 &0
+      - LDPTR1 $3 0x10
+      - JUMP $3
+      - DEST
+      - PMAKE $1 &5
+      - CARGS $2
+      - CALLM $1 $1 &13 $2
+      - GETFLD $2 $1 &0
+      - YIELD $2 &0
+      - DEST
+      - DUMP $0
+    catches: []

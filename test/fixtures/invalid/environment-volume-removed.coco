@@ -1,0 +1,17 @@
+coco EnvironmentVolumeRemoved
+
+class Person:
+    field name String
+    field age U64
+
+state logic:
+    name String
+
+state actor:
+    tag String
+
+// EXPECT: Environment.VolumeAvailable() is not supported in PISA v0.8.0
+// EXPECT: Environment.VolumeCapacity() is not supported in PISA v0.8.0
+endpoint pure I() -> (a U64, b U64):
+    a = Environment.VolumeAvailable()
+    b = Environment.VolumeCapacity()

@@ -1,0 +1,7 @@
+// Environment.VolumeCapacity/VolumeAvailable still exist below PISA 0.8.0, so
+// this file must stay diagnostic-free.
+coco VolumeStillAvailable
+
+endpoint pure Space() -> (capacity U64, available U64):
+    capacity = Environment.VolumeCapacity()
+    available = Environment.VolumeAvailable()

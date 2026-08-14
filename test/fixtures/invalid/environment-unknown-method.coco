@@ -1,0 +1,15 @@
+coco EnvironmentUnknownMethod
+
+class Person:
+    field name String
+    field age U64
+
+state logic:
+    name String
+
+state actor:
+    tag String
+
+// EXPECT: 'Bogus' is not a method of Environment
+endpoint pure J() -> (v U64):
+    v = Environment.Bogus()

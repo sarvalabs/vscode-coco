@@ -27,6 +27,9 @@
             "include": "#exceptions"
         },
         {
+            "include": "#builtin_methods"
+        },
+        {
             "include": "#extended_instructions"
         },
         {
@@ -148,7 +151,7 @@
             "patterns": [
                 {
                     "comment": "Callable Endpoints",
-                    "match": "^(endpoint)\\s+(?:(invoke|enlist|deploy)\\s+)?(?:(ephemeral|persistent|readonly|static|dynamic|pure)\\s+)?(\\w+)",
+                    "match": "^(endpoint)\\s+(?:(invoke|enlist|deploy|interact)\\s+)?(?:(pure|static|dynamic|asset)\\s+)?(\\w+)",
                     "captures": {
                         "1": {
                             "name": "keyword.function.coco"
@@ -225,7 +228,7 @@
             "patterns": [
                 {
                     "comment": "Function declarations",
-                    "match": "^(function)\\s+(?:(persistent|readonly|static|dynamic|pure)\\s+)?(\\w+)",
+                    "match": "^(function)\\s+(?:(pure|static|dynamic)\\s+)?(\\w+)",
                     "captures": {
                         "1": {
                             "name": "keyword.function.coco"
@@ -510,9 +513,9 @@
         "storage_modifiers": {
             "patterns": [
                 {
-                    "comment": "State Type Definitions",
+                    "comment": "State block kinds",
                     "name": "storage.modifier.state.coco",
-                    "match": "\\b(persistent|ephemeral|logic|actor)\\b"
+                    "match": "\\b(logic|actor)\\b"
                 }
             ]
         },
@@ -667,6 +670,20 @@
                             "name": "entity.name.type.interface.coco"
                         }
                     }
+                }
+            ]
+        },
+        "builtin_methods": {
+            "patterns": [
+                {
+                    "comment": "Superglobal methods: Environment / Invocation / Builtins / Actor(id)",
+                    "match": "(?<=\\.)\\b(Timestamp|EffortCapacity|EffortAvailable|StorageResult|VolumeCapacity|VolumeAvailable|ClusterID|ID|Caller|Kind|FuelLimit|FuelPrice|Sha256|Keccak|Blake2b|Sigverify|Exists|HasSigned|Param)\\b(?=\\s*\\()",
+                    "name": "support.function.builtin.coco"
+                },
+                {
+                    "comment": "Asset engine methods",
+                    "match": "(?<=\\basset\\.)\\b([A-Za-z_][A-Za-z0-9_]*)\\b(?=\\s*\\()",
+                    "name": "support.function.asset.coco"
                 }
             ]
         }

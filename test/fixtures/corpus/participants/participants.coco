@@ -1,0 +1,80 @@
+// Participant queries and control flow. `Actor(id)` methods read the
+// interaction rather than any logic's state, so an endpoint that only calls
+// them stays `pure` — declaring it static or dynamic is an error.
+
+coco Participants
+
+event Checked:
+    topic participant Identifier
+    field result      String
+
+state logic:
+    checks U64
+
+state actor:
+    label String
+
+endpoint deploy Init():
+    mutate U64(0) -> Participants.Logic.checks payer Logic
+
+endpoint enlist Register(label String):
+    mutate label -> Participants.Sender.label
+
+// --- actor methods: pure --------------------------------------------------
+
+endpoint pure IsParticipant(participant Identifier) -> (exists Bool):
+    exists = Actor(participant).Exists()
+
+endpoint pure SenderSigned() -> (signed Bool):
+    signed = Actor(Sender).HasSigned()
+
+// Exists() is the safe probe; HasSigned() and Param() raise on a non-participant.
+endpoint pure CheckSigned(participant Identifier) -> (signed Bool):
+    if !Actor(participant).Exists():
+        throw "not a participant of this interaction"
+    signed = Actor(participant).HasSigned()
+
+endpoint pure Claim(code String) -> (proof Bytes):
+    proof = Actor(Sender).Param(code)
+
+// --- control flow ---------------------------------------------------------
+
+endpoint pure Classify(kind String) -> (description String):
+    switch kind:
+        case "read":
+            description = "read-only access"
+        case "write":
+            description = "read and write access"
+        default:
+            description = "unknown access level"
+
+endpoint pure SumTo(n U64) -> (total U64):
+    memory sum U64
+    for i in range(n):
+        if i == 0:
+            continue
+        sum += i
+    total = sum
+
+endpoint pure Digest(data Bytes) -> (hash U256, checked Bool):
+    hash = Builtins.Sha256(data)
+    checked = true
+
+endpoint pure Context() -> (timestamp U64, invocation Identifier, caller Identifier):
+    timestamp = Environment.Timestamp()
+    invocation = Invocation.ID()
+    caller = Invocation.Caller()
+
+// --- state, with storage accounting ---------------------------------------
+
+endpoint dynamic RecordCheck(result String) -> (added U64, removed U64):
+    mutate checks <- Participants.Logic.checks payer Logic:
+        checks += 1
+    emit Checked{participant: Sender, result: result}
+    added, removed = Environment.StorageResult(Identifier(Participants), Identifier(Participants))
+
+endpoint static LabelOf(account Identifier) -> (label String):
+    observe label <- Participants.Actor(account).label
+
+endpoint static Checks() -> (checks U64):
+    observe checks <- Participants.Logic.checks

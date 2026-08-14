@@ -1,21 +1,17 @@
-// A launch configuration that launches the extension inside a new window
+// Launches a second VS Code window with this extension loaded.
 // Use IntelliSense to learn about possible attributes.
 // Hover to view descriptions of existing attributes.
 {
 	"version": "0.2.0",
-    "configurations": [
-		
-        {
+	"configurations": [
+		{
 			"type": "extensionHost",
 			"request": "launch",
 			"name": "Launch Client",
 			"runtimeExecutable": "${execPath}",
 			"args": ["--extensionDevelopmentPath=${workspaceRoot}"],
-			"outFiles": ["${workspaceRoot}/client/out/**/*.js"],
-			"preLaunchTask": {
-				"type": "npm",
-				"script": "watch"
-			}
-		},
-    ]
+			"outFiles": ["${workspaceRoot}/dist/**/*.js"],
+			"preLaunchTask": "watch"
+		}
+	]
 }

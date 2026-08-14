@@ -1,0 +1,16 @@
+coco ReservedWordVariable
+
+class Person:
+    field name String
+    field age U64
+
+state logic:
+    name String
+
+state actor:
+    tag String
+
+// EXPECT: 'payer' is a reserved word and cannot be used as a memory variable name
+endpoint pure L() -> (v U64):
+    memory payer = U64(1)
+    v = payer

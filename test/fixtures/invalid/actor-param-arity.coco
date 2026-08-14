@@ -1,0 +1,17 @@
+coco ActorParamArity
+
+class Person:
+    field name String
+    field age U64
+
+state logic:
+    name String
+
+state actor:
+    tag String
+
+// EXPECT: Param takes exactly 1 argument(s) (name), found 0
+// EXPECT: Param takes exactly 1 argument(s) (name), found 2
+endpoint pure F(id Identifier) -> (b Bytes, c Bytes):
+    b = Actor(id).Param()
+    c = Actor(id).Param("a", "b")

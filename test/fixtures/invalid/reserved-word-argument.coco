@@ -1,0 +1,15 @@
+coco ReservedWordArgument
+
+class Person:
+    field name String
+    field age U64
+
+state logic:
+    name String
+
+state actor:
+    tag String
+
+// EXPECT: 'actor' is a reserved word and cannot be used as an argument name
+endpoint pure M(actor Identifier) -> (v Bool):
+    v = true

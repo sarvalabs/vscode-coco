@@ -2,24 +2,40 @@
 
 // LSP Diagnostic Checker for Cocolang VS Code Extension
 //
-// Feeds .coco files through the language server over stdio and reports
-// any diagnostics. Since the test files are known-good source from the
-// compiler repo, every diagnostic is a likely false-positive (extension bug).
+// Feeds .coco files through the language server over stdio and reports any
+// diagnostics.
+//
+// A diagnostic here is a lead, not a verdict. Parts of the compiler repo's test
+// corpus predate compiler 0.9.0 and genuinely no longer compile, so confirm each
+// one against the compiler before treating it as an extension bug:
+//
+//   cd ~/rust/cocolang/tests/<project>   # the dirs that carry their own coco.nut
+//   coco compile . 2>&1 | grep -i error
+//
+// ~/rust/cocolang/coco-skills is kept current and should stay completely clean.
+//
+// This is a scanning tool for code that lives outside the repository — point it
+// at a directory of real Coco sources to hunt for false positives. The
+// repository's own regression suite is `npm test` (test/feature-check.mjs).
 //
 // Usage:
-//   node test/lsp-check.mjs [path-to-coco-tests]
-//
-// Default test path: ~/rust/cocolang/tests
+//   node test/lsp-check.mjs <directory-of-coco-files>
 
 import { spawn } from 'child_process';
 import { readdir, readFile, stat } from 'fs/promises';
 import { join, resolve, extname, dirname } from 'path';
 import { pathToFileURL, fileURLToPath } from 'url';
-import { homedir } from 'os';
 
-const TESTS_DIR = resolve(process.argv[2] || join(homedir(), 'rust', 'cocolang', 'tests'));
+if (!process.argv[2]) {
+	console.error('Usage: node test/lsp-check.mjs <directory-of-coco-files>');
+	console.error('Scans an external directory for diagnostics. For the repository\'s own');
+	console.error('regression suite, run `npm test` instead.');
+	process.exit(2);
+}
+
+const TESTS_DIR = resolve(process.argv[2]);
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
-const SERVER_PATH = resolve(SCRIPT_DIR, '..', 'server', 'out', 'server.js');
+const SERVER_PATH = resolve(SCRIPT_DIR, '..', 'dist', 'server.js');
 const OPEN_DELAY_MS = 80;
 const IDLE_TIMEOUT_MS = 5000;
 const GLOBAL_TIMEOUT_MS = 60000;
@@ -262,7 +278,7 @@ async function main() {
 
 		console.log('────────────────────────────────');
 		console.log(`${diagnosticsMap.size} file(s) with diagnostics, ${total} total`);
-		console.log('These are likely false positives (extension bugs).');
+		console.log('Confirm each against `coco compile` before calling it an extension bug.');
 	}
 
 	if (missing.length > 0) {

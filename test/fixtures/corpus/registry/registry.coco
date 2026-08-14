@@ -1,0 +1,99 @@
+// A CRUD registry over atomic storage: maps, arrays and classes in logic state,
+// moved with gather/disperse. Also exercises class methods, nested classes,
+// f-strings, ternaries, for loops and the field-name shorthand.
+
+coco Registry
+
+class Address:
+    field street String
+    field city   String
+
+class Record:
+    field name    String
+    field value   U64
+    field active  Bool
+    field address Address
+
+    method Describe() -> (info String):
+        info = f"{self.name} ({self.value}) in {self.address.city}"
+
+    method mutate Deactivate():
+        self.active = false
+
+state logic:
+    owner        Identifier
+    records      Map[String]Record
+    record_names []String
+    record_count U64
+
+endpoint deploy Init():
+    mutate Sender -> Registry.Logic.owner payer Logic
+    mutate U64(0) -> Registry.Logic.record_count payer Logic
+
+function static RequireOwner():
+    memory owner Identifier
+    observe owner <- Registry.Logic.owner
+    if Sender != owner:
+        throw "unauthorized: caller is not the owner"
+
+endpoint dynamic Create(name String, value U64, street String, city String):
+    RequireOwner()
+    memory address = Address{street, city}
+    memory active = true
+    memory record = Record{name, value, active, address}
+
+    mutate records <- Registry.Logic.records:
+        if records[name]?:
+            throw "record already exists"
+        disperse records[name] <- record
+
+    mutate names <- Registry.Logic.record_names:
+        append(names, name)
+
+    mutate count <- Registry.Logic.record_count:
+        count += 1
+
+endpoint static Read(name String) -> (record Record):
+    observe records <- Registry.Logic.records:
+        if !records[name]?:
+            throw "no such record"
+        gather record <- records[name]
+
+endpoint dynamic Update(name String, value U64):
+    RequireOwner()
+    mutate records <- Registry.Logic.records:
+        if !records[name]?:
+            throw "no such record"
+        memory record Record
+        gather record <- records[name]
+        record.value = value
+        disperse records[name] <- record
+
+endpoint dynamic Deactivate(name String):
+    RequireOwner()
+    mutate records <- Registry.Logic.records:
+        if !records[name]?:
+            throw "no such record"
+        memory record Record
+        gather record <- records[name]
+        record.Deactivate()
+        disperse records[name] <- record
+
+endpoint static List() -> (descriptions []String):
+    memory all []String
+    observe names <- Registry.Logic.record_names:
+        observe records <- Registry.Logic.records:
+            for _, name in names:
+                memory record Record
+                gather record <- records[name]
+                memory info = (info) <- record.Describe()
+                append(all, info)
+    descriptions = all
+
+endpoint static Count() -> (count U64):
+    observe count <- Registry.Logic.record_count
+
+endpoint static Summary() -> (summary String):
+    memory count U64
+    observe count <- Registry.Logic.record_count
+    summary = ("empty" if count == 0 else f"{count} record(s)")

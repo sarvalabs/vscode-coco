@@ -1,0 +1,509 @@
+syntax: 1
+engine:
+  kind: PISA
+  flags: []
+  version: 0.8.0
+kind: logic
+elements:
+- ptr: 0
+  kind: literal
+  data:
+    type: string
+    value: '0x062028'
+- ptr: 1
+  kind: literal
+  data:
+    type: string
+    value: '0x062920696e20'
+- ptr: 2
+  kind: literal
+  data:
+    type: string
+    value: '0x06756e617574686f72697a65643a2063616c6c6572206973206e6f7420746865206f776e6572'
+- ptr: 3
+  kind: literal
+  data:
+    type: string
+    value: '0x067265636f726420616c726561647920657869737473'
+- ptr: 4
+  kind: literal
+  data:
+    type: string
+    value: '0x066e6f2073756368207265636f7264'
+- ptr: 5
+  kind: literal
+  data:
+    type: string
+    value: '0x06656d707479'
+- ptr: 6
+  kind: literal
+  data:
+    type: string
+    value: '0x06207265636f7264287329'
+- ptr: 7
+  kind: typedef
+  data: '[]string'
+- ptr: 8
+  deps:
+  - 10
+  kind: typedef
+  data: map[string]class.Record
+- ptr: 9
+  kind: class
+  data:
+    name: Address
+    fields:
+    - slot: 0
+      label: street
+      type: string
+    - slot: 1
+      label: city
+      type: string
+    methods: []
+- ptr: 10
+  deps:
+  - 9
+  kind: class
+  data:
+    name: Record
+    fields:
+    - slot: 0
+      label: name
+      type: string
+    - slot: 1
+      label: value
+      type: u64
+    - slot: 2
+      label: active
+      type: bool
+    - slot: 3
+      label: address
+      type: class.Address
+    methods:
+    - ptr: 21
+      code: 16
+    - ptr: 22
+      code: 17
+- ptr: 11
+  deps:
+  - 10
+  kind: state
+  data:
+    mode: logic
+    fields:
+    - slot: 0
+      label: owner
+      type: identifier
+    - slot: 1
+      label: records
+      type: map[string]class.Record
+    - slot: 2
+      label: record_names
+      type: '[]string'
+    - slot: 3
+      label: record_count
+      type: u64
+- ptr: 12
+  deps:
+  - 11
+  kind: callable
+  data:
+    name: Init
+    mode: dynamic
+    kind: deploy
+    accepts: []
+    returns: []
+    executes:
+      asm:
+      - LOGIC $0
+      - LLOAD $1 &0
+      - VOLPAY $1 $0
+      - ORIGIN $0
+      - DISPER $1 $0
+      - STORE $1
+      - LOGIC $0
+      - LLOAD $1 &3
+      - VOLPAY $1 $0
+      - PMAKE $0 &5
+      - DISPER $1 $0
+      - STORE $1
+    catches: []
+- ptr: 13
+  deps:
+  - 2
+  - 11
+  kind: callable
+  data:
+    name: RequireOwner
+    mode: static
+    kind: internal
+    accepts: []
+    returns: []
+    executes:
+      asm:
+      - PMAKE $0 &4
+      - LLOAD $1 &0
+      - GATHER $0 $1
+      - DUMP $1
+      - ORIGIN $1
+      - EQ $0 $1 $0
+      - LDPTR1 $1 0xb
+      - JUMPI $1 $0
+      - LDPTR1 $0 0x2
+      - LMAKE $0 $0
+      - THROW $0
+      - DEST
+    catches: []
+- ptr: 14
+  deps:
+  - 3
+  - 9
+  - 10
+  - 13
+  - 11
+  kind: callable
+  data:
+    name: Create
+    mode: dynamic
+    kind: invoke
+    accepts:
+    - slot: 0
+      label: name
+      type: string
+    - slot: 1
+      label: value
+      type: u64
+    - slot: 2
+      label: street
+      type: string
+    - slot: 3
+      label: city
+      type: string
+    returns: []
+    executes:
+      asm:
+      - CARGS $0
+      - LDPTR1 $1 0xd
+      - CALLC $0 $1 $0
+      - LDPTR1 $0 0x9
+      - MAKE $0 $0
+      - OBTAIN $1 &2
+      - SETFLD $0 &0 $1
+      - OBTAIN $1 &3
+      - SETFLD $0 &1 $1
+      - PMAKE $1 &1
+      - NOT $1 $1
+      - LDPTR1 $2 0xa
+      - MAKE $2 $2
+      - OBTAIN $3 &0
+      - SETFLD $2 &0 $3
+      - OBTAIN $4 &1
+      - SETFLD $2 &1 $4
+      - SETFLD $2 &2 $1
+      - SETFLD $2 &3 $0
+      - COPY $0 $2
+      - LLOAD $1 &1
+      - HASKEY $2 $1 $3
+      - NOT $2 $2
+      - LDPTR1 $4 0x1c
+      - JUMPI $4 $2
+      - LDPTR1 $2 0x3
+      - LMAKE $2 $2
+      - THROW $2
+      - DEST
+      - GENKEY $2 $1 $3
+      - GENKEY $2 $1 $3
+      - DISPER $2 $0
+      - SETKEY $1 $3 $2
+      - STORE $1
+      - LLOAD $0 &2
+      - APPEND $0 $3
+      - STORE $0
+      - LLOAD $0 &3
+      - GATHER $1 $0
+      - INCR $1
+      - DISPER $0 $1
+      - STORE $0
+    catches: []
+- ptr: 15
+  deps:
+  - 4
+  - 10
+  - 11
+  kind: callable
+  data:
+    name: Read
+    mode: static
+    kind: invoke
+    accepts:
+    - slot: 0
+      label: name
+      type: string
+    returns:
+    - slot: 0
+      label: record
+      type: class.Record
+    executes:
+      asm:
+      - LDPTR1 $0 0xa
+      - MAKE $0 $0
+      - LLOAD $1 &1
+      - OBTAIN $2 &0
+      - HASKEY $3 $1 $2
+      - LDPTR1 $4 0xa
+      - JUMPI $4 $3
+      - LDPTR1 $3 0x4
+      - LMAKE $3 $3
+      - THROW $3
+      - DEST
+      - GETKEY $2 $1 $2
+      - GATHER $0 $2
+      - DUMP $1
+      - YIELD $0 &0
+    catches: []
+- ptr: 16
+  deps:
+  - 4
+  - 13
+  - 11
+  kind: callable
+  data:
+    name: Update
+    mode: dynamic
+    kind: invoke
+    accepts:
+    - slot: 0
+      label: name
+      type: string
+    - slot: 1
+      label: value
+      type: u64
+    returns: []
+    executes:
+      asm:
+      - CARGS $0
+      - LDPTR1 $1 0xd
+      - CALLC $0 $1 $0
+      - LLOAD $0 &1
+      - OBTAIN $1 &0
+      - HASKEY $2 $0 $1
+      - LDPTR1 $3 0xb
+      - JUMPI $3 $2
+      - LDPTR1 $2 0x4
+      - LMAKE $2 $2
+      - THROW $2
+      - DEST
+      - LDPTR1 $2 0xa
+      - MAKE $2 $2
+      - GETKEY $3 $0 $1
+      - GATHER $2 $3
+      - GETFLD $3 $2 &1
+      - OBTAIN $4 &1
+      - COPY $3 $4
+      - SETFLD $2 &1 $3
+      - GENKEY $3 $0 $1
+      - GENKEY $3 $0 $1
+      - DISPER $3 $2
+      - SETKEY $0 $1 $3
+      - STORE $0
+    catches: []
+- ptr: 17
+  deps:
+  - 4
+  - 13
+  - 11
+  kind: callable
+  data:
+    name: Deactivate
+    mode: dynamic
+    kind: invoke
+    accepts:
+    - slot: 0
+      label: name
+      type: string
+    returns: []
+    executes:
+      asm:
+      - CARGS $0
+      - LDPTR1 $1 0xd
+      - CALLC $0 $1 $0
+      - LLOAD $0 &1
+      - OBTAIN $1 &0
+      - HASKEY $2 $0 $1
+      - LDPTR1 $3 0xb
+      - JUMPI $3 $2
+      - LDPTR1 $2 0x4
+      - LMAKE $2 $2
+      - THROW $2
+      - DEST
+      - LDPTR1 $2 0xa
+      - MAKE $2 $2
+      - GETKEY $3 $0 $1
+      - GATHER $2 $3
+      - CARGS $3
+      - CALLM $3 $2 &11 $3
+      - GENKEY $3 $0 $1
+      - GENKEY $3 $0 $1
+      - DISPER $3 $2
+      - SETKEY $0 $1 $3
+      - STORE $0
+    catches: []
+- ptr: 18
+  deps:
+  - 7
+  - 11
+  kind: callable
+  data:
+    name: List
+    mode: static
+    kind: invoke
+    accepts: []
+    returns:
+    - slot: 0
+      label: descriptions
+      type: '[]string'
+    executes:
+      asm:
+      - LDPTR1 $0 0x7
+      - MAKE $0 $0
+      - PMAKE $1 &5
+      - LDPTR1 $2 0x7
+      - VMAKE $1 $2 $1
+      - LLOAD $2 &2
+      - LLOAD $3 &1
+      - PMAKE $4 &5
+      - SIZE $5 $2
+      - DEST
+      - LT $6 $4 $5
+      - NOT $6 $6
+      - LDPTR1 $7 0x1b
+      - JUMPI $7 $6
+      - GETIDX $6 $2 $4
+      - LDPTR1 $8 0xa
+      - MAKE $8 $8
+      - GETKEY $9 $3 $6
+      - GATHER $8 $9
+      - CARGS $9
+      - CALLM $8 $8 &10 $9
+      - GETFLD $8 $8 &0
+      - APPEND $1 $8
+      - DEST
+      - INCR $4
+      - LDPTR1 $7 0x9
+      - JUMP $7
+      - DEST
+      - DUMP $3
+      - DUMP $2
+      - COPY $0 $1
+      - YIELD $0 &0
+    catches: []
+- ptr: 19
+  deps:
+  - 11
+  kind: callable
+  data:
+    name: Count
+    mode: static
+    kind: invoke
+    accepts: []
+    returns:
+    - slot: 0
+      label: count
+      type: u64
+    executes:
+      asm:
+      - LLOAD $0 &3
+      - YIELD $0 &0
+      - DUMP $0
+    catches: []
+- ptr: 20
+  deps:
+  - 5
+  - 6
+  - 11
+  kind: callable
+  data:
+    name: Summary
+    mode: static
+    kind: invoke
+    accepts: []
+    returns:
+    - slot: 0
+      label: summary
+      type: string
+    executes:
+      asm:
+      - PMAKE $0 &5
+      - LLOAD $1 &3
+      - GATHER $0 $1
+      - DUMP $1
+      - PMAKE $1 &5
+      - EQ $1 $0 $1
+      - NOT $1 $1
+      - LDPTR1 $2 0xd
+      - JUMPI $2 $1
+      - LDPTR1 $1 0x5
+      - LMAKE $1 $1
+      - LDPTR1 $2 0x13
+      - JUMP $2
+      - DEST
+      - STR $0 $0
+      - LDPTR1 $2 0x6
+      - LMAKE $2 $2
+      - JOIN $0 $0 $2
+      - COPY $1 $0
+      - DEST
+      - YIELD $1 &0
+    catches: []
+- ptr: 21
+  deps:
+  - 0
+  - 1
+  - 10
+  kind: method
+  data:
+    name: Describe
+    class: Record
+    mutable: false
+    accepts: []
+    returns:
+    - slot: 0
+      label: info
+      type: string
+    executes:
+      asm:
+      - GETSELF $0
+      - GETFLD $0 $0 &0
+      - LDPTR1 $1 0x0
+      - LMAKE $1 $1
+      - JOIN $0 $0 $1
+      - GETSELF $1
+      - GETFLD $1 $1 &1
+      - STR $1 $1
+      - JOIN $0 $0 $1
+      - LDPTR1 $1 0x1
+      - LMAKE $1 $1
+      - JOIN $0 $0 $1
+      - GETSELF $1
+      - GETFLD $1 $1 &3
+      - GETFLD $1 $1 &1
+      - JOIN $0 $0 $1
+      - YIELD $0 &0
+    catches: []
+- ptr: 22
+  deps:
+  - 10
+  kind: method
+  data:
+    name: Deactivate
+    class: Record
+    mutable: true
+    accepts: []
+    returns: []
+    executes:
+      asm:
+      - GETSELF $0
+      - PMAKE $1 &1
+      - SETFLD $0 &2 $1
+      - SETSELF $0
+    catches: []

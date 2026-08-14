@@ -1,0 +1,5 @@
+coco ActorMethodsBefore080
+
+// EXPECT: Actor(id).Exists() is not implemented in PISA v0.7.1, implemented in v0.8.0
+endpoint pure Probe(id Identifier) -> (b Bool):
+    b = Actor(id).Exists()

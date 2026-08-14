@@ -1,0 +1,10 @@
+// coco.nut in this directory targets PISA 0.7.1, where none of the 0.8.0
+// features exist yet.
+coco PayerBefore080
+
+state logic:
+    name String
+
+// EXPECT: payer for state logic volume is not supported in PISA version 0.7.1, requires 0.8.0
+endpoint dynamic SetName(n String):
+    mutate n -> PayerBefore080.Logic.name payer Logic
