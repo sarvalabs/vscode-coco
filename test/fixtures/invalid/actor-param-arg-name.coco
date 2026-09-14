@@ -1,0 +1,5 @@
+coco ActorParamArgName
+
+// EXPECT: expected argument name 'name' at position 0, called with 'code'
+endpoint pure Claim(code String) -> (proof Bytes):
+    proof = Actor(Sender).Param(code)

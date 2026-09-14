@@ -302,11 +302,11 @@ export const completionDetails = (item: CompletionItem): CompletionItem => {
 			break;
 		case 34:
 			item.detail = 'Actor superglobal';
-			item.documentation = 'A participant: the state path Module.Actor(id).field, the payer Actor(id) clause, and the actor methods Exists(), HasSigned() and Param(name) on PISA 0.8.0.';
+			item.documentation = 'A participant: the state path Module.Actor(id).field, the payer Actor(id) clause, and the actor methods Exists() -> exists, HasSigned() -> has_signed and Param(name) -> param on PISA 0.8.0.';
 			break;
 		case 35:
 			item.detail = 'Environment superglobal';
-			item.documentation = 'Runtime context: Timestamp(), EffortCapacity(), EffortAvailable(), and StorageResult(account, payer) on PISA 0.8.0.';
+			item.documentation = 'Runtime context: Timestamp(), EffortCapacity(), EffortAvailable(), and StorageResult(account_id, payer_id) on PISA 0.8.0. A labelled or bare-variable argument must use the declared name.';
 			break;
 		case 36:
 			item.detail = 'Invocation superglobal';

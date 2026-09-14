@@ -527,6 +527,65 @@ elements:
 - ptr: 24
   kind: callable
   data:
+    name: Cost
+    mode: pure
+    kind: invoke
+    accepts:
+    - slot: 0
+      label: who
+      type: identifier
+    returns:
+    - slot: 0
+      label: added
+      type: u64
+    - slot: 1
+      label: removed
+      type: u64
+    executes:
+      asm:
+      - OBTAIN $0 &0
+      - VOLRES $0 $1 $0 $0
+      - YIELD $0 &0
+      - YIELD $1 &1
+    catches: []
+- ptr: 25
+  kind: callable
+  data:
+    name: CostUnlabelled
+    mode: pure
+    kind: invoke
+    accepts:
+    - slot: 0
+      label: account_id
+      type: identifier
+    returns:
+    - slot: 0
+      label: added
+      type: u64
+    - slot: 1
+      label: removed
+      type: u64
+    executes:
+      asm:
+      - ORIGIN $0
+      - ORIGIN $1
+      - VOLRES $0 $1 $0 $1
+      - YIELD $0 &0
+      - YIELD $1 &1
+      - LOGIC $0
+      - ORIGIN $1
+      - VOLRES $0 $1 $0 $1
+      - YIELD $0 &0
+      - YIELD $1 &1
+      - OBTAIN $0 &0
+      - ORIGIN $1
+      - VOLRES $0 $1 $0 $1
+      - YIELD $0 &0
+      - YIELD $1 &1
+    catches: []
+- ptr: 26
+  kind: callable
+  data:
     name: Fuel
     mode: pure
     kind: invoke
@@ -545,7 +604,7 @@ elements:
       - EFFAVL $0
       - YIELD $0 &1
     catches: []
-- ptr: 25
+- ptr: 27
   kind: callable
   data:
     name: Hash
@@ -569,7 +628,7 @@ elements:
       - GETFLD $0 $0 &0
       - YIELD $0 &0
     catches: []
-- ptr: 26
+- ptr: 28
   deps:
   - 8
   kind: callable
@@ -592,7 +651,7 @@ elements:
       - YIELD $1 &0
       - DUMP $1
     catches: []
-- ptr: 27
+- ptr: 29
   deps:
   - 8
   kind: callable
@@ -622,7 +681,7 @@ elements:
       - DISPER $1 $2
       - STORE $1
     catches: []
-- ptr: 28
+- ptr: 30
   deps:
   - 7
   kind: callable
@@ -641,9 +700,9 @@ elements:
       - YIELD $0 &0
       - DUMP $0
     catches: []
-- ptr: 29
+- ptr: 31
   deps:
-  - 28
+  - 30
   kind: callable
   data:
     name: NameViaFunction
@@ -657,12 +716,12 @@ elements:
     executes:
       asm:
       - CARGS $0
-      - LDPTR1 $1 0x1c
+      - LDPTR1 $1 0x1e
       - CALLC $0 $1 $0
       - GETFLD $0 $0 &0
       - YIELD $0 &0
     catches: []
-- ptr: 30
+- ptr: 32
   kind: callable
   data:
     name: CreditVia
@@ -697,7 +756,7 @@ elements:
       - GETFLD $0 $0 &0
       - YIELD $0 &0
     catches: []
-- ptr: 31
+- ptr: 33
   kind: callable
   data:
     name: SupplyVia
@@ -722,7 +781,7 @@ elements:
       - GETFLD $0 $0 &0
       - YIELD $0 &0
     catches: []
-- ptr: 32
+- ptr: 34
   kind: callable
   data:
     name: MintVia

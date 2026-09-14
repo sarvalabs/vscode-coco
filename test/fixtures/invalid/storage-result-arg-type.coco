@@ -1,0 +1,5 @@
+coco StorageResultArgType
+
+// EXPECT: argument 'payer_id' of 'StorageResult' expects type identifier, found u64
+endpoint pure Cost(n U64) -> (a U64, r U64):
+    a, r = Environment.StorageResult(Sender, payer_id: n)

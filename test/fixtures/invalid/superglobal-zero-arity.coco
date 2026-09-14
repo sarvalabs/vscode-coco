@@ -1,0 +1,10 @@
+// A zero-argument method still prints its (empty) parameter list.
+coco SuperglobalZeroArity
+
+// EXPECT: ID takes exactly 0 argument(s) (), found 1
+endpoint pure Id() -> (i Identifier):
+    i = Invocation.ID(1)
+
+// EXPECT: Exists takes exactly 0 argument(s) (), found 1
+endpoint pure Present(p Identifier) -> (e Bool):
+    e = Actor(p).Exists(1)

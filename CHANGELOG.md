@@ -1,3 +1,58 @@
+## v0.4.1
+Support for **Cocolang v0.9.1** targeting **PISA v0.8.0**.
+
+### Superglobal arguments are matched by name
+Coco 0.9.1 rewrote the `Environment`, `Invocation` and `Builtins` tables so that every
+call site checks arity, argument *name* and argument type. The server now mirrors that.
+
+- **`Environment.StorageResult(account_id, payer_id)`** — the two arguments were renamed
+  from `account` / `payer`.
+- A name is only compared when the argument has one. An explicit `label:` is one; so is a
+  bare variable, which the 0.9.1 parser names after itself. A literal, a cast or a keyword
+  like `Sender` carries no name and is accepted unlabelled. So
+  `Environment.StorageResult(Sender, Sender)` and `Builtins.Sha256(Bytes(s))` compile,
+  while `Environment.StorageResult(who, Sender)` is reported as
+  `argument 0 of 'StorageResult' expected name 'account_id', found 'who'` and
+  `Builtins.Sha256(blob)` is rejected where `data` is declared. The rule is the same for
+  `Environment`, `Builtins` and the `Actor` methods.
+- Names are compared **by position**, so the right names in the wrong order are an error
+  too.
+- Argument errors are worded exactly as the compiler words them for each family. `Builtins`
+  has its own phrasing — `builtin function Sha256 requires 1 arguments, called with 0`,
+  `expected type 'Bytes' for argument 'data', called with type 'U64'` and an unquoted
+  `expected argument name data at position 0, called with blob`. The others print the
+  parameter list even when it is empty (`ID takes exactly 0 argument(s) (), found 1`) and
+  spell types in lowercase (`expects type identifier, found u64`).
+- Completion for a method that takes arguments inserts the labelled form, so
+  `Environment.StorageResult` completes to `StorageResult(account_id: …, payer_id: …)` —
+  the one spelling that stays correct whatever is typed into each slot.
+
+Adding or dropping argument labels is a source-level change only: the compiler checks the
+names and then strips them before codegen, so the emitted manifest is byte-identical and a
+deployed logic does not need redeploying. (The `token` and `participants` fixtures compile
+to the same `.yaml` with and without labels.)
+
+### Return names
+- The `Builtins` and `Actor` methods declare return names — `hash`, `ok`, `exists`,
+  `has_signed`, `param` — which now show in completion and hover signatures.
+- The `(name) <- call()` capture is validated on the `Actor` methods, for both the names
+  and how many are captured: `expected return name 'exists', found 'fake'`.
+- `Environment`, `Invocation` and `Builtins` are not expressions the grammar accepts after
+  `<-` at all, so the capture form on those is flagged rather than left to surface as an
+  unrecognised-token parse error.
+
+### Maps can no longer be dispersed into storage
+- `disperse make(Map[K]V) -> target` and `disperse target <- Holder{…}` are rejected when
+  the value is a map, or a class that reaches one anywhere in its field tree. Arrays and
+  map-free classes are unaffected.
+- A bare variable on the value side is resolved through its declaration — an endpoint
+  parameter, a `memory x T` line or a constructor assignment — so `disperse c <- incoming`
+  is caught too. A name whose type cannot be pinned down is left alone rather than guessed
+  at. The check is not version-gated: the compiler applies it on every PISA target.
+
+### Other
+- The `Environment.Timestamp()` hover says it is in **nanoseconds** since the Unix epoch.
+
 ## v0.4.0
 Support for **Cocolang v0.9.0** targeting **PISA v0.8.0**.
 

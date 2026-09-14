@@ -1,0 +1,11 @@
+// Only the Actor type methods parse the `(name) <- ` capture; Environment,
+// Invocation and Builtins are not expressions the grammar accepts there.
+coco EnvironmentReturnCapture
+
+// EXPECT: Environment.StorageResult() does not support the '(name) <- ' return capture
+endpoint pure Cost(who Identifier) -> (a U64, r U64):
+    a, r = (added, removed) <- Environment.StorageResult(account_id: who, payer_id: who)
+
+// EXPECT: Builtins.Sha256() does not support the '(name) <- ' return capture
+endpoint pure Hash(data Bytes) -> (digest U256):
+    digest = (hash) <- Builtins.Sha256(data)

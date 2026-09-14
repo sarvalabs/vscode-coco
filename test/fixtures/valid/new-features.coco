@@ -1,4 +1,4 @@
-// Everything Cocolang 0.9.0 / PISA 0.8.0 added, in its correct form.
+// Everything Cocolang 0.9.1 / PISA 0.8.0 supports, in its correct form.
 // This file compiles cleanly with `coco compile`, so the language server must
 // report no diagnostics for it.
 
@@ -58,7 +58,7 @@ endpoint pure InLoop(n U64) -> (out []Person):
 
 endpoint deploy Init(name String) -> (added U64, removed U64):
     mutate name -> NewFeatures.Logic.name payer Logic
-    added, removed = Environment.StorageResult(Identifier(NewFeatures), Identifier(NewFeatures))
+    added, removed = Environment.StorageResult(account_id: Identifier(NewFeatures), payer_id: Identifier(NewFeatures))
 
 endpoint dynamic SetConfig(cfg String, sponsor Identifier):
     mutate cfg -> NewFeatures.Logic.config payer Actor(sponsor)
@@ -79,7 +79,7 @@ endpoint pure SenderSigned() -> (signed Bool):
     signed = Actor(Sender).HasSigned()
 
 endpoint pure Claim(code String) -> (proof Bytes):
-    proof = Actor(Sender).Param(code)
+    proof = Actor(Sender).Param(name: code)
 
 endpoint pure CheckSigned(participant Identifier) -> (signed Bool):
     if !Actor(participant).Exists():
@@ -90,10 +90,26 @@ endpoint pure CheckSigned(participant Identifier) -> (signed Bool):
 
 endpoint enlist Register(tag String) -> (added U64, removed U64):
     mutate tag -> NewFeatures.Sender.tag
-    added, removed = Environment.StorageResult(Sender, Sender)
+    added, removed = Environment.StorageResult(account_id: Sender, payer_id: Sender)
 
 endpoint pure Now() -> (ts U64):
     ts = Environment.Timestamp()
+
+// The multi-line call with a trailing comma is how the reference docs write
+// StorageResult, so the server must not read the comma as a third argument.
+endpoint pure Cost(who Identifier) -> (added U64, removed U64):
+    added, removed = Environment.StorageResult(
+        account_id: who,
+        payer_id: who,
+    )
+
+// Argument names are optional where the argument has none of its own — a
+// keyword, a cast or a literal — and a bare variable is fine when it is
+// already called what the parameter is.
+endpoint pure CostUnlabelled(account_id Identifier) -> (added U64, removed U64):
+    added, removed = Environment.StorageResult(Sender, Sender)
+    added, removed = Environment.StorageResult(Identifier(NewFeatures), payer_id: Sender)
+    added, removed = Environment.StorageResult(account_id, Sender)
 
 endpoint pure Fuel() -> (capacity U64, available U64):
     capacity = Environment.EffortCapacity()

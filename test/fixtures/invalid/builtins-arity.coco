@@ -1,0 +1,10 @@
+// Builtins word their argument-count error apart from the other superglobals.
+coco BuiltinsArity
+
+// EXPECT: builtin function Sha256 requires 1 arguments, called with 0
+endpoint pure Empty() -> (digest U256):
+    digest = Builtins.Sha256()
+
+// EXPECT: builtin function Sigverify requires 3 arguments, called with 1
+endpoint pure Short(data Bytes) -> (ok Bool):
+    ok = Builtins.Sigverify(data)

@@ -1,0 +1,8 @@
+// A bare variable is named after itself, so it has to match the declared name
+// at its position — `who` is not `account_id`. Literals, casts and keywords
+// like `Sender` carry no name and are accepted unlabelled.
+coco StorageResultInferredName
+
+// EXPECT: argument 0 of 'StorageResult' expected name 'account_id', found 'who'
+endpoint pure Cost(who Identifier) -> (a U64, r U64):
+    a, r = Environment.StorageResult(who, Sender)

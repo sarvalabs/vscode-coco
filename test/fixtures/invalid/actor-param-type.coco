@@ -10,6 +10,6 @@ state logic:
 state actor:
     tag String
 
-// EXPECT: argument 'name' of 'Param' expects type String, found U64
+// EXPECT: argument 'name' of 'Param' expects type string, found u64
 endpoint pure H(id Identifier) -> (b Bytes):
     b = Actor(id).Param(U64(1))

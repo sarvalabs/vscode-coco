@@ -6,7 +6,7 @@
 // asserts on the diagnostics it produces.
 //
 //   test/fixtures/valid/    every file must produce NO diagnostics
-//   test/fixtures/corpus/   whole modules of realistic Coco 0.9.0, one directory
+//   test/fixtures/corpus/   whole modules of realistic Coco 0.9.1, one directory
 //                           each, that must also produce NO diagnostics — every
 //                           one of them compiles cleanly with `coco compile`
 //   test/fixtures/invalid/  every `// EXPECT: <text>` comment must be matched by

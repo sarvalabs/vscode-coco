@@ -1,0 +1,10 @@
+// The `(name) <- call()` capture has to name the method's own return values.
+coco ActorReturnCapture
+
+// EXPECT: expected return name 'exists', found 'fake'
+endpoint pure Wrong(id Identifier) -> (e Bool):
+    e = (fake) <- Actor(id).Exists()
+
+// EXPECT: 'Exists' returns 1 value(s), but 2 were captured
+endpoint pure TooMany(id Identifier) -> (e Bool, x Bool):
+    e, x = (exists, extra) <- Actor(id).Exists()

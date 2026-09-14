@@ -1,0 +1,12 @@
+// The right names in the wrong order are still wrong: the compiler compares
+// each argument's name against the one declared at that position.
+coco StorageResultArgNames
+
+// EXPECT: argument 0 of 'StorageResult' expected name 'account_id', found 'payer_id'
+// EXPECT: argument 1 of 'StorageResult' expected name 'payer_id', found 'account_id'
+endpoint pure Swapped(who Identifier) -> (a U64, r U64):
+    a, r = Environment.StorageResult(payer_id: who, account_id: who)
+
+// EXPECT: argument 0 of 'StorageResult' expected name 'account_id', found 'account'
+endpoint pure OldName(who Identifier) -> (a U64, r U64):
+    a, r = Environment.StorageResult(account: who, payer_id: who)

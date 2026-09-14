@@ -1,0 +1,5 @@
+coco BuiltinsArgType
+
+// EXPECT: expected type 'Bytes' for argument 'data', called with type 'U64'
+endpoint pure Hash() -> (digest U256):
+    digest = Builtins.Sha256(U64(1))

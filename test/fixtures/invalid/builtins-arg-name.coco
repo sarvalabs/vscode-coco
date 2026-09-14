@@ -1,0 +1,11 @@
+// A bare identifier supplies its own name, so passing `blob` where `data` is
+// declared is an argument-name mismatch.
+coco BuiltinsArgName
+
+// EXPECT: expected argument name data at position 0, called with blob
+endpoint pure Hash(blob Bytes) -> (digest U256):
+    digest = Builtins.Sha256(blob)
+
+// EXPECT: expected argument name signature at position 1, called with sig
+endpoint pure Verify(data Bytes, sig Bytes, pubkey Bytes) -> (ok Bool):
+    ok = Builtins.Sigverify(data, sig, pubkey)

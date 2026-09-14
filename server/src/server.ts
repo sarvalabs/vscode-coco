@@ -8,6 +8,7 @@ import {
 	DidChangeConfigurationNotification,
 	CompletionItem,
 	CompletionItemKind,
+	InsertTextFormat,
 	TextDocumentPositionParams,
 	TextDocumentSyncKind,
 	InitializeResult,
@@ -116,6 +117,7 @@ async function validateTextDocument(textDocument: TextDocument): Promise<void> {
 	checkStateFieldReferences(text, stateIndex, interfaceStateIndex, classIndex, diagnostics);
 	checkPayerClauses(text, moduleContext.pisaVersion, diagnostics);
 	checkWholeStateWrites(text, stateIndex, classIndex, diagnostics);
+	checkMapDisperse(text, classIndex, diagnostics);
 	checkFieldAccess(text, classIndex, diagnostics);
 	checkFStringChunks(text, classIndex, diagnostics);
 	checkStandardFunctionTypes(text, classIndex, diagnostics);
@@ -493,7 +495,7 @@ type InterfaceIndex = {
 };
 
 type ClassIndex = {
-	classes: Map<string, { definition: DefinitionLocation; fields: Map<string, DefinitionLocation>; methods: Map<string, DefinitionLocation>; fieldTypes: Map<string, { typeName: string; isCollection: boolean }> }>;
+	classes: Map<string, { definition: DefinitionLocation; fields: Map<string, DefinitionLocation>; methods: Map<string, DefinitionLocation>; fieldTypes: Map<string, { typeName: string; isCollection: boolean; isMap: boolean }> }>;
 };
 
 type EventIndex = {
@@ -1160,7 +1162,7 @@ const buildModuleAnalysisIndexes = (context: ModuleContext): {
 };
 
 const mergeClassIndexes = (indexes: ClassIndex[]): ClassIndex => {
-	const classes = new Map<string, { definition: DefinitionLocation; fields: Map<string, DefinitionLocation>; methods: Map<string, DefinitionLocation>; fieldTypes: Map<string, { typeName: string; isCollection: boolean }> }>();
+	const classes = new Map<string, { definition: DefinitionLocation; fields: Map<string, DefinitionLocation>; methods: Map<string, DefinitionLocation>; fieldTypes: Map<string, { typeName: string; isCollection: boolean; isMap: boolean }> }>();
 	for (const index of indexes) {
 		for (const [name, value] of index.classes.entries()) {
 			if (!classes.has(name)) {
@@ -1258,7 +1260,7 @@ const getCocoModuleName = (text: string): string | null => {
 
 const buildClassIndex = (text: string): ClassIndex => {
 	const lines = text.split(/\r?\n/);
-	const classes = new Map<string, { definition: DefinitionLocation; fields: Map<string, DefinitionLocation>; methods: Map<string, DefinitionLocation>; fieldTypes: Map<string, { typeName: string; isCollection: boolean }> }>();
+	const classes = new Map<string, { definition: DefinitionLocation; fields: Map<string, DefinitionLocation>; methods: Map<string, DefinitionLocation>; fieldTypes: Map<string, { typeName: string; isCollection: boolean; isMap: boolean }> }>();
 
 	const classPattern = /^\s*class\s+([A-Za-z_][A-Za-z0-9_]*)\b(?=\s*:)/;
 	const fieldPattern = /^\s*field\s+([A-Za-z_][A-Za-z0-9_]*)\s+((?:\[\]|Map\[.*?\]|\[\d+\])*)([A-Za-z_][A-Za-z0-9_]*)/;
@@ -1306,7 +1308,11 @@ const buildClassIndex = (text: string): ClassIndex => {
 			const isCollection = collectionPrefix.length > 0;
 			const fieldIndex = line.indexOf(fieldName, fieldMatch.index ?? 0);
 			classes.get(currentClass)?.fields.set(fieldName, { line: lineIndex, character: fieldIndex });
-			classes.get(currentClass)?.fieldTypes.set(fieldName, { typeName: fieldTypeName, isCollection });
+			classes.get(currentClass)?.fieldTypes.set(fieldName, {
+				typeName: fieldTypeName,
+				isCollection,
+				isMap: collectionPrefix.includes("Map[")
+			});
 			continue;
 		}
 
@@ -2932,9 +2938,14 @@ const ASSET_METHODS = new Map<string, { args: string[]; returns: string[]; quali
 // BuiltinMethodSignature describes a method hanging off one of the superglobals.
 // `since`/`until` bound the PISA versions that implement it — the compiler
 // rejects a call outside that window rather than silently ignoring it.
+//
+// Since Coco 0.9.1 every one of these tables declares argument names, and the
+// compiler matches them positionally. A return carries a name only where the
+// compiler declares one: `Environment`'s returns are a bare type list, while
+// `Builtins` and the `Actor` methods name theirs.
 type BuiltinMethodSignature = {
 	args: Array<{ name: string; type: string }>;
-	returns: string[];
+	returns: Array<{ name?: string; type: string }>;
 	since?: PisaVersion;
 	until?: PisaVersion;
 	replacedBy?: string;
@@ -2942,44 +2953,44 @@ type BuiltinMethodSignature = {
 };
 
 const ENVIRONMENT_METHODS = new Map<string, BuiltinMethodSignature>([
-	["Timestamp", { args: [], returns: ["U64"], detail: "Current block timestamp" }],
-	["ClusterID", { args: [], returns: ["String"], until: "0.3.2", detail: "Cluster the logic runs on (PISA 0.3.2 only)" }],
-	["EffortCapacity", { args: [], returns: ["U64"], since: "0.4.0", detail: "Total fuel available for this execution" }],
-	["EffortAvailable", { args: [], returns: ["U64"], since: "0.4.0", detail: "Remaining fuel" }],
+	["Timestamp", { args: [], returns: [{ type: "U64" }], detail: "Current block timestamp, in nanoseconds since the Unix epoch" }],
+	["ClusterID", { args: [], returns: [{ type: "String" }], until: "0.3.2", detail: "Cluster the logic runs on (PISA 0.3.2 only)" }],
+	["EffortCapacity", { args: [], returns: [{ type: "U64" }], since: "0.4.0", detail: "Total fuel available for this execution" }],
+	["EffortAvailable", { args: [], returns: [{ type: "U64" }], since: "0.4.0", detail: "Remaining fuel" }],
 	["StorageResult", {
-		args: [{ name: "account", type: "Identifier" }, { name: "payer", type: "Identifier" }],
-		returns: ["U64", "U64"],
+		args: [{ name: "account_id", type: "Identifier" }, { name: "payer_id", type: "Identifier" }],
+		returns: [{ type: "U64" }, { type: "U64" }],
 		since: "0.8.0",
-		detail: "Storage bytes (added, removed) so far in this interaction for account, charged to payer"
+		detail: "Storage bytes (added, removed) so far in this interaction for account_id, charged to payer_id"
 	}],
 	["VolumeCapacity", {
-		args: [], returns: ["U64"], since: "0.4.0", until: "0.7.1",
-		replacedBy: "Environment.StorageResult(account, payer)",
+		args: [], returns: [{ type: "U64" }], since: "0.4.0", until: "0.7.1",
+		replacedBy: "Environment.StorageResult(account_id: ..., payer_id: ...)",
 		detail: "Total storage space available (removed in PISA 0.8.0)"
 	}],
 	["VolumeAvailable", {
-		args: [], returns: ["U64"], since: "0.4.0", until: "0.7.1",
-		replacedBy: "Environment.StorageResult(account, payer)",
+		args: [], returns: [{ type: "U64" }], since: "0.4.0", until: "0.7.1",
+		replacedBy: "Environment.StorageResult(account_id: ..., payer_id: ...)",
 		detail: "Remaining storage space (removed in PISA 0.8.0)"
 	}]
 ]);
 
 const INVOCATION_METHODS = new Map<string, BuiltinMethodSignature>([
-	["ID", { args: [], returns: ["Identifier"], detail: "Unique ID of this invocation" }],
-	["__id__", { args: [], returns: ["Identifier"], detail: "Alias of Invocation.ID()" }],
-	["Caller", { args: [], returns: ["Identifier"], since: "0.5.0", detail: "Immediate caller of this endpoint" }],
-	["Kind", { args: [], returns: ["String"], until: "0.3.2", detail: "Interaction kind (PISA 0.3.2 only)" }],
-	["FuelLimit", { args: [], returns: ["U64"], until: "0.3.2", detail: "Fuel limit of the interaction (PISA 0.3.2 only)" }],
-	["FuelPrice", { args: [], returns: ["U256"], until: "0.3.2", detail: "Fuel price of the interaction (PISA 0.3.2 only)" }]
+	["ID", { args: [], returns: [{ type: "Identifier" }], detail: "Unique ID of this invocation" }],
+	["__id__", { args: [], returns: [{ type: "Identifier" }], detail: "Alias of Invocation.ID()" }],
+	["Caller", { args: [], returns: [{ type: "Identifier" }], since: "0.5.0", detail: "Immediate caller of this endpoint" }],
+	["Kind", { args: [], returns: [{ type: "String" }], until: "0.3.2", detail: "Interaction kind (PISA 0.3.2 only)" }],
+	["FuelLimit", { args: [], returns: [{ type: "U64" }], until: "0.3.2", detail: "Fuel limit of the interaction (PISA 0.3.2 only)" }],
+	["FuelPrice", { args: [], returns: [{ type: "U256" }], until: "0.3.2", detail: "Fuel price of the interaction (PISA 0.3.2 only)" }]
 ]);
 
 const BUILTINS_METHODS = new Map<string, BuiltinMethodSignature>([
-	["Sha256", { args: [{ name: "data", type: "Bytes" }], returns: ["U256"], detail: "SHA-256 hash" }],
-	["Keccak", { args: [{ name: "data", type: "Bytes" }], returns: ["U256"], detail: "Keccak-256 hash" }],
-	["Blake2b", { args: [{ name: "data", type: "Bytes" }], returns: ["U256"], detail: "Blake2b hash" }],
+	["Sha256", { args: [{ name: "data", type: "Bytes" }], returns: [{ name: "hash", type: "U256" }], detail: "SHA-256 hash" }],
+	["Keccak", { args: [{ name: "data", type: "Bytes" }], returns: [{ name: "hash", type: "U256" }], detail: "Keccak-256 hash" }],
+	["Blake2b", { args: [{ name: "data", type: "Bytes" }], returns: [{ name: "hash", type: "U256" }], detail: "Blake2b hash" }],
 	["Sigverify", {
 		args: [{ name: "data", type: "Bytes" }, { name: "signature", type: "Bytes" }, { name: "pubkey", type: "Bytes" }],
-		returns: ["Bool"],
+		returns: [{ name: "ok", type: "Bool" }],
 		detail: "Verify a signature"
 	}]
 ]);
@@ -2988,9 +2999,9 @@ const BUILTINS_METHODS = new Map<string, BuiltinMethodSignature>([
 // read the interaction, not any logic's state, so an endpoint that only calls
 // them stays `pure`.
 const ACTOR_METHODS = new Map<string, BuiltinMethodSignature>([
-	["Exists", { args: [], returns: ["Bool"], since: "0.8.0", detail: "Is the identifier a participant of this interaction (never raises)" }],
-	["HasSigned", { args: [], returns: ["Bool"], since: "0.8.0", detail: "Has the participant signed this interaction (raises on a non-participant)" }],
-	["Param", { args: [{ name: "name", type: "String" }], returns: ["Bytes"], since: "0.8.0", detail: "Interaction parameter supplied by that participant (raises on a non-participant)" }]
+	["Exists", { args: [], returns: [{ name: "exists", type: "Bool" }], since: "0.8.0", detail: "Is the identifier a participant of this interaction (never raises)" }],
+	["HasSigned", { args: [], returns: [{ name: "has_signed", type: "Bool" }], since: "0.8.0", detail: "Has the participant signed this interaction (raises on a non-participant)" }],
+	["Param", { args: [{ name: "name", type: "String" }], returns: [{ name: "param", type: "Bytes" }], since: "0.8.0", detail: "Interaction parameter supplied by that participant (raises on a non-participant)" }]
 ]);
 
 const SUPERGLOBAL_METHODS = new Map<string, Map<string, BuiltinMethodSignature>>([
@@ -3000,10 +3011,80 @@ const SUPERGLOBAL_METHODS = new Map<string, Map<string, BuiltinMethodSignature>>
 	["Actor", ACTOR_METHODS]
 ]);
 
+// ArgumentMessages words each argument error the way the compiler does for one
+// superglobal family. The checks are shared, the wording is not: Builtins are
+// reported from their own branch in compiler.rs, Environment's name mismatch
+// from environment.rs, and the rest use the common validate_args phrasing.
+type ArgumentMessages = {
+	arity: (method: string, expected: string[], found: number) => string;
+	name: (method: string, index: number, expected: string, given: string) => string;
+	type: (method: string, argName: string, expected: string, found: string) => string;
+};
+
+// The common phrasing prints the parameter list even when it is empty —
+// `ID takes exactly 0 argument(s) (), found 1` — and spells types the way the
+// compiler's Type Display does, in lowercase.
+const DEFAULT_ARGUMENT_MESSAGES: ArgumentMessages = {
+	arity: (method, expected, found) =>
+		`${method} takes exactly ${expected.length} argument(s) (${expected.join(", ")}), found ${found}`,
+	name: (_method, index, expected, given) =>
+		`expected argument name '${expected}' at position ${index}, called with '${given}'`,
+	type: (method, argName, expected, found) =>
+		`argument '${argName}' of '${method}' expects type ${expected.toLowerCase()}, found ${found.toLowerCase()}`
+};
+
+const SUPERGLOBAL_ARGUMENT_MESSAGES = new Map<string, ArgumentMessages>([
+	["Environment", {
+		...DEFAULT_ARGUMENT_MESSAGES,
+		name: (method, index, expected, given) =>
+			`argument ${index} of '${method}' expected name '${expected}', found '${given}'`
+	}],
+	["Builtins", {
+		arity: (method, expected, found) =>
+			`builtin function ${method} requires ${expected.length} arguments, called with ${found}`,
+		name: (_method, index, expected, given) =>
+			`expected argument name ${expected} at position ${index}, called with ${given}`,
+		type: (_method, argName, expected, found) =>
+			`expected type '${expected}' for argument '${argName}', called with type '${found}'`
+	}]
+]);
+
+// Only the `Actor(id).M()` type methods accept the `(name) <- call()` capture
+// form; the grammar does not even parse it for the other three superglobals.
+const CAPTURE_CAPABLE_SUPERGLOBALS = new Set<string>(["Actor"]);
+
+type SuperglobalCall = {
+	superglobal: string;
+	method: string;
+	receiverStart: number;
+	methodStart: number;
+	openParen: number;
+};
+
+// effectiveArgumentName works out the name the compiler will see for one
+// argument, mirroring what the 0.9.1 parser writes into `NamedValue.name`:
+// an explicit `label:` when one is written, otherwise the argument's own
+// identifier when it is a bare unscoped name, and nothing at all for everything
+// else — a literal, a cast, a field access, or a keyword like `Sender`.
+const effectiveArgumentName = (argumentText: string): { name: string; valueText: string } => {
+	const trimmed = argumentText.trim();
+
+	const labelMatch = trimmed.match(/^([A-Za-z_]\w*)\s*:\s*([\s\S]*)$/);
+	if (labelMatch) {
+		return { name: labelMatch[1], valueText: labelMatch[2] };
+	}
+
+	// `Sender`, `Logic`, `self` and friends have their own grammar productions,
+	// so they are not `Name` expressions and contribute no inferred name.
+	const isBareName = /^[A-Za-z_]\w*$/.test(trimmed) && !RESERVED_WORDS.has(trimmed);
+	return { name: isBareName ? trimmed : "", valueText: trimmed };
+};
+
 // signatureLabel renders a builtin signature the way the reference docs do.
 const signatureLabel = (name: string, signature: BuiltinMethodSignature): string => {
 	const args = signature.args.map(arg => `${arg.name} ${arg.type}`).join(", ");
-	const returns = signature.returns.length > 0 ? ` -> (${signature.returns.join(", ")})` : "";
+	const rendered = signature.returns.map(ret => ret.name ? `${ret.name} ${ret.type}` : ret.type);
+	const returns = rendered.length > 0 ? ` -> (${rendered.join(", ")})` : "";
 	return `${name}(${args})${returns}`;
 };
 
@@ -3018,12 +3099,26 @@ const buildMemberCompletions = (linePrefix: string, pisaVersion: PisaVersion): C
 		(!signature.since || isPisaAtLeast(pisaVersion, signature.since))
 		&& (!signature.until || !isPisaAfter(pisaVersion, signature.until));
 
-	const toItem = (name: string, signature: BuiltinMethodSignature): CompletionItem => ({
-		label: name,
-		kind: CompletionItemKind.Method,
-		detail: signatureLabel(name, signature),
-		documentation: signature.detail
-	});
+	// Complete straight into the labelled form — `StorageResult(account_id: ${1},
+	// payer_id: ${2})`. The labels are optional for a literal or a keyword, but
+	// a bare variable is named after itself and must then match, so writing
+	// them out is the one form that is right whatever gets typed into the slot.
+	const toItem = (name: string, signature: BuiltinMethodSignature): CompletionItem => {
+		const item: CompletionItem = {
+			label: name,
+			kind: CompletionItemKind.Method,
+			detail: signatureLabel(name, signature),
+			documentation: signature.detail
+		};
+		if (signature.args.length > 0) {
+			const placeholders = signature.args
+				.map((arg, index) => `${arg.name}: \${${index + 1}:${arg.type}}`)
+				.join(", ");
+			item.insertText = `${name}(${placeholders})`;
+			item.insertTextFormat = InsertTextFormat.Snippet;
+		}
+		return item;
+	};
 
 	const superglobal = linePrefix.match(/(?:^|[^A-Za-z0-9_.])(Environment|Invocation|Builtins)\s*\.\s*[A-Za-z0-9_]*$/);
 	if (superglobal) {
@@ -3118,6 +3213,13 @@ const splitCallArguments = (argsText: string): string[] => {
 		}
 	}
 	args.push(argsText.slice(start).trim());
+
+	// A trailing comma is legal in a call argument list, and the multi-line form
+	// the reference docs use for StorageResult leans on it — so the empty segment
+	// it leaves behind is punctuation, not a third argument.
+	if (args.length > 1 && args[args.length - 1].length === 0) {
+		args.pop();
+	}
 	return args;
 };
 
@@ -3141,8 +3243,8 @@ const findSuperglobalMethodCalls = (
 	normalizedText: string,
 	lines: string[],
 	offsets: number[]
-): Array<{ superglobal: string; method: string; methodStart: number; openParen: number }> => {
-	const results: Array<{ superglobal: string; method: string; methodStart: number; openParen: number }> = [];
+): SuperglobalCall[] => {
+	const results: SuperglobalCall[] = [];
 
 	const plainPattern = /(?<![A-Za-z0-9_.])(Environment|Invocation|Builtins)\s*\.\s*([A-Za-z_]\w*)\s*\(/g;
 	let match: RegExpExecArray | null;
@@ -3155,6 +3257,7 @@ const findSuperglobalMethodCalls = (
 		results.push({
 			superglobal: match[1],
 			method: match[2],
+			receiverStart: match.index,
 			methodStart,
 			openParen: match.index + match[0].length - 1
 		});
@@ -3178,6 +3281,7 @@ const findSuperglobalMethodCalls = (
 		results.push({
 			superglobal: "Actor",
 			method: tail[1],
+			receiverStart: match.index,
 			methodStart,
 			openParen: closeParen + tail[0].length
 		});
@@ -3558,6 +3662,65 @@ const checkStateQualifiers = (
 	}
 };
 
+// checkSuperglobalReturnCapture validates the `(names) <- call()` capture form
+// in front of a superglobal call. Only the Actor type methods parse it at all,
+// and there the compiler insists the captured names are exactly the ones the
+// method declares, in order.
+const checkSuperglobalReturnCapture = (
+	call: SuperglobalCall,
+	signature: BuiltinMethodSignature,
+	receiverLabel: string,
+	normalizedText: string,
+	offsets: number[],
+	diagnostics: Diagnostic[]
+): void => {
+	const before = normalizedText.slice(0, call.receiverStart);
+	// Keep the capture list on the call's own line — matching across a newline
+	// would turn the previous statement's `<-` into a false positive.
+	const capture = before.match(/\(([^()\n]*)\)[ \t]*<-[ \t]*$/);
+	if (!capture) {
+		return;
+	}
+
+	const captureRange = {
+		start: offsetToPosition(offsets, before.length - capture[0].length),
+		end: offsetToPosition(offsets, call.receiverStart)
+	};
+
+	if (!CAPTURE_CAPABLE_SUPERGLOBALS.has(call.superglobal)) {
+		diagnostics.push({
+			severity: DiagnosticSeverity.Error,
+			range: captureRange,
+			message: `${receiverLabel}.${call.method}() does not support the '(name) <- ' return capture — assign the call directly instead`,
+			source: 'ex'
+		});
+		return;
+	}
+
+	const names = capture[1].split(",").map(part => part.trim()).filter(part => part.length > 0);
+	if (names.length !== signature.returns.length) {
+		diagnostics.push({
+			severity: DiagnosticSeverity.Error,
+			range: captureRange,
+			message: `'${call.method}' returns ${signature.returns.length} value(s), but ${names.length} were captured`,
+			source: 'ex'
+		});
+		return;
+	}
+
+	for (let index = 0; index < names.length; index++) {
+		const expected = signature.returns[index].name;
+		if (expected && names[index] !== expected) {
+			diagnostics.push({
+				severity: DiagnosticSeverity.Error,
+				range: captureRange,
+				message: `expected return name '${expected}', found '${names[index]}'`,
+				source: 'ex'
+			});
+		}
+	}
+};
+
 const checkSuperglobalMethodCalls = (
 	text: string,
 	pisaVersion: PisaVersion,
@@ -3625,13 +3788,13 @@ const checkSuperglobalMethodCalls = (
 		}
 
 		const argsText = normalizedText.slice(call.openParen + 1, closeParen);
+		const messages = SUPERGLOBAL_ARGUMENT_MESSAGES.get(call.superglobal) ?? DEFAULT_ARGUMENT_MESSAGES;
 		const args = splitCallArguments(argsText);
 		if (args.length !== signature.args.length) {
-			const names = signature.args.map(arg => arg.name).join(", ");
 			diagnostics.push({
 				severity: DiagnosticSeverity.Error,
 				range: methodRange,
-				message: `${call.method} takes exactly ${signature.args.length} argument(s)${names ? ` (${names})` : ""}, found ${args.length}`,
+				message: messages.arity(call.method, signature.args.map(arg => arg.name), args.length),
 				source: 'ex'
 			});
 			continue;
@@ -3639,32 +3802,35 @@ const checkSuperglobalMethodCalls = (
 
 		for (let index = 0; index < args.length; index++) {
 			const expected = signature.args[index];
-			const labelMatch = args[index].match(/^([A-Za-z_]\w*)\s*:\s*([\s\S]*)$/);
-			const valueText = labelMatch ? labelMatch[2] : args[index];
+			const { name: givenName, valueText } = effectiveArgumentName(args[index]);
 
-			if (labelMatch && !signature.args.some(arg => arg.name === labelMatch[1])) {
+			// A name is only compared when the argument has one — an explicit
+			// label, or a bare variable the 0.9.1 parser names after itself — so
+			// `StorageResult(Sender, Sender)` and `Sha256(Bytes(s))` pass while
+			// `Sha256(blob)` does not. When a name is there it is matched by
+			// position, so the right names in the wrong order are still wrong.
+			if (givenName !== "" && givenName !== expected.name) {
 				diagnostics.push({
-					severity: DiagnosticSeverity.Warning,
+					severity: DiagnosticSeverity.Error,
 					range: methodRange,
-					message: `unknown argument '${labelMatch[1]}' for ${receiverLabel}.${call.method}(). Expected: ${signature.args.map(arg => arg.name).join(", ")}`,
+					message: messages.name(call.method, index, expected.name, givenName),
 					source: 'ex'
 				});
 				continue;
 			}
 
-			const expectedName = labelMatch
-				? (signature.args.find(arg => arg.name === labelMatch[1])?.type ?? expected.type)
-				: expected.type;
 			const actual = inferExpressionType(valueText, methodPosition.line, text, callableIndex, classIndex);
-			if (actual && !actual.isCollection && actual.typeName !== expectedName && builtinTypeNames.has(actual.typeName)) {
+			if (actual && !actual.isCollection && actual.typeName !== expected.type && builtinTypeNames.has(actual.typeName)) {
 				diagnostics.push({
 					severity: DiagnosticSeverity.Error,
 					range: methodRange,
-					message: `argument '${labelMatch ? labelMatch[1] : expected.name}' of '${call.method}' expects type ${expectedName}, found ${actual.typeName}`,
+					message: messages.type(call.method, expected.name, expected.type, actual.typeName),
 					source: 'ex'
 				});
 			}
 		}
+
+		checkSuperglobalReturnCapture(call, signature, receiverLabel, normalizedText, offsets, diagnostics);
 	}
 };
 
@@ -4337,6 +4503,128 @@ const isAtomicStateType = (fieldType: string, classIndex: ClassIndex): boolean =
 	return bareName !== null && classIndex.classes.has(bareName[1]);
 };
 
+// typeContainsMap reports whether a declared type is a map, or a class that
+// reaches one through its fields. Coco 0.9.1 rejects the whole family from
+// `gather` / `disperse`, not just a bare `Map[K]V`, so the walk is recursive.
+// `seen` breaks the cycle a self-referential class would otherwise create.
+const typeContainsMap = (typeText: string, classIndex: ClassIndex, seen: Set<string> = new Set()): boolean => {
+	const trimmed = typeText.trim();
+	if (trimmed.startsWith("Map[")) {
+		return true;
+	}
+
+	// Peel one array layer at a time — `[]Holder` is fine, but only if Holder is.
+	const array = trimmed.match(/^(?:\[\]|\[\d+\])([\s\S]+)$/);
+	if (array) {
+		return typeContainsMap(array[1], classIndex, seen);
+	}
+
+	const bareName = trimmed.match(/^([A-Za-z_][A-Za-z0-9_]*)$/);
+	if (!bareName || seen.has(bareName[1])) {
+		return false;
+	}
+	const classEntry = classIndex.classes.get(bareName[1]);
+	if (!classEntry) {
+		return false;
+	}
+
+	seen.add(bareName[1]);
+	for (const field of classEntry.fieldTypes.values()) {
+		if (field.isMap || typeContainsMap(field.typeName, classIndex, seen)) {
+			return true;
+		}
+	}
+	return false;
+};
+
+// sourceTypeOfDisperse pulls the value side off a `disperse` statement, which
+// the grammar spells in either direction: `disperse <source> -> <target>` or
+// `disperse <target> <- <source>`. A `make(T)` or `T{...}` literal names its
+// type outright; a bare identifier names a variable whose declared type has to
+// be looked up. Anything more involved is left alone rather than guessed at.
+const sourceTypeOfDisperse = (scanLine: string): { typeText: string; start: number; isVariable?: boolean } | null => {
+	const verb = scanLine.match(/\bdisperse\b/);
+	if (!verb || verb.index === undefined) {
+		return null;
+	}
+
+	const arrows = findMutateObserveArrows(scanLine, verb.index);
+	if (arrows.length === 0) {
+		return null;
+	}
+	const arrow = arrows[0];
+	const source = arrow.token === "->"
+		? { text: scanLine.slice(verb.index + verb[0].length, arrow.index), offset: verb.index + verb[0].length }
+		: { text: scanLine.slice(arrow.index + 2), offset: arrow.index + 2 };
+
+	const make = source.text.match(/^\s*make\s*\(\s*([\s\S]*?)\s*\)\s*$/);
+	if (make) {
+		return { typeText: make[1], start: source.offset + source.text.indexOf(make[1]) };
+	}
+
+	// `Holder{...}`, `Map[U64]String{}`, `[]Holder{...}` — the type is whatever
+	// sits in front of the opening brace.
+	const literal = source.text.match(/^\s*((?:\[\]|\[\d+\]|Map\[[^\]]*\])*[A-Za-z_][A-Za-z0-9_]*)\s*\{/);
+	if (literal) {
+		return { typeText: literal[1], start: source.offset + source.text.indexOf(literal[1]) };
+	}
+
+	const variable = source.text.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*$/);
+	if (variable && !RESERVED_WORDS.has(variable[1])) {
+		return { typeText: variable[1], start: source.offset + source.text.indexOf(variable[1]), isVariable: true };
+	}
+
+	return null;
+};
+
+// checkMapDisperse catches a `disperse` whose value is a map, or a class holding
+// one anywhere in its field tree. Coco 0.9.1 stopped letting maps cross the
+// storage boundary in one move; the keys have to be tracked in a separate array
+// and the elements written one at a time.
+const checkMapDisperse = (
+	text: string,
+	classIndex: ClassIndex,
+	diagnostics: Diagnostic[]
+): void => {
+	const lines = text.split(/\r?\n/);
+	const callableIndex = buildCallableIndex(text);
+
+	for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+		const source = sourceTypeOfDisperse(stripCommentsAndStrings(lines[lineIndex]));
+		if (!source) {
+			continue;
+		}
+
+		// A variable carries its type in its declaration — an endpoint parameter,
+		// a `memory x T` line or a constructor assignment. Leave it alone when the
+		// type cannot be pinned down, so an unresolved name is never guessed at.
+		let typeText = source.typeText;
+		if (source.isVariable) {
+			const declared = findTypeForReceiver(text, source.typeText, lineIndex, callableIndex);
+			if (!declared) {
+				continue;
+			}
+			// findTypeForReceiver drops a `Map[K]V`'s key and value, reporting the
+			// bare word `Map` — which is a reserved word, so it can only be that.
+			typeText = declared === "Map" ? "Map[]" : declared;
+		}
+
+		if (!typeContainsMap(typeText, classIndex)) {
+			continue;
+		}
+
+		diagnostics.push({
+			severity: DiagnosticSeverity.Error,
+			range: {
+				start: { line: lineIndex, character: source.start },
+				end: { line: lineIndex, character: source.start + source.typeText.length }
+			},
+			message: "maps can't be dispersed into storage: consider storing map keys in separate array and setting map elements one by one",
+			source: 'ex'
+		});
+	}
+};
+
 // checkWholeStateWrites catches `mutate value -> Module.Logic.collection`, where
 // the target is a map, array or class. The compiler answers that with "Can't
 // store a non-dispersable value into variable '<field>'"; the read-modify-write
@@ -4945,7 +5233,7 @@ const inferSuperglobalReturnType = (
 	if (plain) {
 		const signature = SUPERGLOBAL_METHODS.get(plain[1])?.get(plain[2]);
 		return signature && signature.returns.length === 1
-			? { typeName: signature.returns[0], isCollection: false }
+			? { typeName: signature.returns[0].type, isCollection: false }
 			: null;
 	}
 
@@ -4958,7 +5246,7 @@ const inferSuperglobalReturnType = (
 		const tail = trimmed.slice(closeParen + 1).match(/^\s*\.\s*([A-Za-z_]\w*)\s*\(/);
 		const signature = tail ? ACTOR_METHODS.get(tail[1]) : undefined;
 		return signature && signature.returns.length === 1
-			? { typeName: signature.returns[0], isCollection: false }
+			? { typeName: signature.returns[0].type, isCollection: false }
 			: null;
 	}
 

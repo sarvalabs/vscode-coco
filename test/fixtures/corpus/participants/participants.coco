@@ -35,7 +35,7 @@ endpoint pure CheckSigned(participant Identifier) -> (signed Bool):
     signed = Actor(participant).HasSigned()
 
 endpoint pure Claim(code String) -> (proof Bytes):
-    proof = Actor(Sender).Param(code)
+    proof = Actor(Sender).Param(name: code)
 
 // --- control flow ---------------------------------------------------------
 
