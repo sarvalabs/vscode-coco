@@ -1,0 +1,18 @@
+// Asset method outputs are named too (`balance`, `symbol`, ...), and a write
+// method has none to capture.
+coco asset AssetOutputNames
+
+endpoint deploy Init():
+    pass
+
+// EXPECT: 'BalanceOf' returns value named 'balance' at position 0, used output 'bal'
+endpoint static Balance(address Identifier) -> (b U256):
+    b = (bal) <- asset.BalanceOf(token_id: 0, address)
+
+// EXPECT: 'Symbol' returns 1 value(s), but 2 output(s) were captured
+endpoint static Symbol() -> (s String, t String):
+    s, t = (symbol, extra) <- asset.Symbol()
+
+// EXPECT: 'Burn' returns 0 value(s), but 1 output(s) were captured
+endpoint dynamic Burn(amount U256) -> (y U64):
+    y = (x) <- asset.Burn(token_id: 0, amount: amount)

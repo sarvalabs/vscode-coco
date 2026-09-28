@@ -3,7 +3,7 @@
     "displayName": "Coco Programming Language",
     "icon": "icons/coco.png",
     "description": "Language support for the Coco Programming Language in Visual Studio Code",
-    "version": "0.4.1",
+    "version": "0.4.2",
     "license": "MIT",
     "publisher": "sarvalabs",
     "author": {

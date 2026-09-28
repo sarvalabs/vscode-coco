@@ -608,6 +608,46 @@ elements:
       - YIELD $0 &0
     catches: []
 - ptr: 25
+  kind: callable
+  data:
+    name: Summary
+    mode: static
+    kind: invoke
+    accepts:
+    - slot: 0
+      label: address
+      type: identifier
+    returns:
+    - slot: 0
+      label: symbol
+      type: string
+    - slot: 1
+      label: held
+      type: u256
+    - slot: 2
+      label: supply
+      type: u256
+    executes:
+      asm:
+      - CARGS $0
+      - ASSET $1
+      - CALLM $0 $1 &10 $0
+      - GETFLD $0 $0 &0
+      - YIELD $0 &0
+      - CARGS $0
+      - PMAKE $2 &5
+      - OBTAIN $3 &0
+      - SETFLD $0 &0 $2
+      - SETFLD $0 &1 $3
+      - CALLM $0 $1 &11 $0
+      - GETFLD $0 $0 &0
+      - YIELD $0 &1
+      - CARGS $0
+      - CALLM $0 $1 &16 $0
+      - GETFLD $0 $0 &0
+      - YIELD $0 &2
+    catches: []
+- ptr: 26
   kind: asset
   data:
     engine: 1.0.0

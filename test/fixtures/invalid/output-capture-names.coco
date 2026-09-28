@@ -1,0 +1,42 @@
+// Since Coco 0.9.2 `Environment`, `Invocation` and `Builtins` calls take the
+// `(names) <- ` capture, and the names must be the ones each output is declared
+// with, in order. Invocation words it without a position.
+coco OutputCaptureNames
+
+// EXPECT: 'Timestamp' returns value named 'timestamp' at position 0, used output 'tstamp'
+endpoint pure WrongName() -> (t U64):
+    t = (tstamp) <- Environment.Timestamp()
+
+// EXPECT: 'StorageResult' returns 2 value(s), but 1 output(s) were captured
+endpoint pure TooFew() -> (a U64):
+    a = (added) <- Environment.StorageResult(Sender, Sender)
+
+// `_` discards on the left-hand side only; inside the capture it is just a
+// wrong name.
+// EXPECT: 'StorageResult' returns value named 'added' at position 0, used output '_'
+endpoint pure Discard() -> (r U64):
+    _, r = (_, removed) <- Environment.StorageResult(Sender, Sender)
+
+// The right names in the wrong order are wrong at both positions.
+// EXPECT: 'StorageResult' returns value named 'added' at position 0, used output 'removed'
+// EXPECT: 'StorageResult' returns value named 'removed' at position 1, used output 'added'
+endpoint pure Swapped() -> (a U64, r U64):
+    r, a = (removed, added) <- Environment.StorageResult(Sender, Sender)
+
+// EXPECT: 'Caller' returns value named 'caller', used output 'who'
+endpoint pure InvocationName() -> (c Identifier):
+    c = (who) <- Invocation.Caller()
+
+// EXPECT: 'ID' returns 1 value, but 2 output(s) were captured
+endpoint pure InvocationCount() -> (i Identifier, j Identifier):
+    i, j = (id, other) <- Invocation.ID()
+
+// EXPECT: 'Sha256' returns value named 'hash' at position 0, used output 'digest'
+endpoint pure BuiltinsName(data Bytes) -> (h U256):
+    h = (digest) <- Builtins.Sha256(data)
+
+// Only a bare name parses in the capture list; the compiler stops at the `)<-`
+// token, so the server reports it in the compiler's own words for the case.
+// EXPECT: output of 'Timestamp' at position 0 is not a name
+endpoint pure NotAName() -> (t U64):
+    t = (x.timestamp) <- Environment.Timestamp()

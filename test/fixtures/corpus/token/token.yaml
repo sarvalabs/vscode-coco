@@ -116,27 +116,6 @@ elements:
     catches: []
 - ptr: 8
   deps:
-  - 6
-  kind: callable
-  data:
-    name: Register
-    mode: dynamic
-    kind: enlist
-    accepts: []
-    returns: []
-    executes:
-      asm:
-      - ORIGIN $0
-      - ALOAD $1 $0 &0
-      - PMAKE $2 &5
-      - CARGS $3
-      - CALLM $2 $2 &13 $3
-      - GETFLD $3 $2 &0
-      - DISPER $1 $3
-      - STORE $1
-    catches: []
-- ptr: 9
-  deps:
   - 0
   - 5
   kind: callable
@@ -165,7 +144,7 @@ elements:
       - THROW $0
       - DEST
     catches: []
-- ptr: 10
+- ptr: 9
   deps:
   - 5
   - 6
@@ -199,10 +178,10 @@ elements:
       - DISPER $1 $2
       - STORE $1
     catches: []
-- ptr: 11
+- ptr: 10
   deps:
   - 1
-  - 9
+  - 8
   - 6
   - 5
   kind: callable
@@ -223,7 +202,7 @@ elements:
       - CARGS $0
       - OBTAIN $1 &0
       - SETFLD $0 &0 $1
-      - LDPTR1 $2 0x9
+      - LDPTR1 $2 0x8
       - CALLC $0 $2 $0
       - ORIGIN $0
       - ALOAD $2 $0 &0
@@ -248,7 +227,7 @@ elements:
       - DISPER $0 $2
       - STORE $0
     catches: []
-- ptr: 12
+- ptr: 11
   deps:
   - 1
   - 4
@@ -317,7 +296,7 @@ elements:
       - ID $1 $1
       - EMIT $1 $0
     catches: []
-- ptr: 13
+- ptr: 12
   deps:
   - 2
   - 5
@@ -364,7 +343,7 @@ elements:
       - STORE $2
       - YIELD $0 &0
     catches: []
-- ptr: 14
+- ptr: 13
   deps:
   - 6
   kind: callable
@@ -387,7 +366,7 @@ elements:
       - YIELD $1 &0
       - DUMP $1
     catches: []
-- ptr: 15
+- ptr: 14
   deps:
   - 5
   kind: callable
@@ -418,7 +397,7 @@ elements:
       - YIELD $0 &2
       - DUMP $0
     catches: []
-- ptr: 16
+- ptr: 15
   deps:
   - 5
   kind: callable

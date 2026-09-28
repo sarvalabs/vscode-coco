@@ -1,3 +1,54 @@
+## v0.4.2
+Support for **Cocolang v0.9.2** targeting **PISA v0.8.0**.
+
+### `enlist` endpoints no longer compile
+- `endpoint enlist …` is reported as `enlist endpoints are not supported` on every PISA
+  target, legacy ones included. MOI has no enlist interaction, so the compiler now refuses
+  to build one. `enlist` is still a reserved word and still highlighted.
+- Completion no longer offers `enlist` as an endpoint qualifier.
+- To migrate, delete the endpoint (an actor that was never written reads every field as
+  its zero value), or make it `dynamic` and guard it, since it can now be called more than
+  once. The `token`, `participants` and `valid` fixtures are ported that way.
+
+### Named outputs on superglobal and asset calls
+- The `(names) <- call()` capture now works on `Environment`, `Invocation`, `Builtins` and
+  `asset` calls, as it already did on the `Actor` methods. 0.4.1 flagged it on the first
+  three because the 0.9.1 grammar did not accept it there; that diagnostic is gone.
+- The captured names are checked as the compiler checks them, with its wording for each
+  family:
+  - wrong name: `'Timestamp' returns value named 'timestamp' at position 0, used output 'tstamp'`
+    (on `Invocation`, without the position);
+  - wrong count: `'StorageResult' returns 2 value(s), but 1 output(s) were captured`.
+  To keep one output, capture every name and discard on the left:
+  `added, _ = (added, removed) <- Environment.StorageResult(…)`.
+- Anything other than a bare name in the list is reported as
+  `output of 'Timestamp' at position 0 is not a name`. The compiler rejects it earlier, as
+  an unrecognised `)<-` token.
+- Output names are listed in completion signatures:
+  `StorageResult(account_id Identifier, payer_id Identifier) -> (added U64, removed U64)`,
+  `Timestamp() -> (timestamp U64)`, `Caller() -> (caller Identifier)`.
+
+### Grouped constants
+- Members of a `const:` / `pub const:` block are known names, so using one no longer
+  gets an "is not defined" diagnostic. `pub const X …` on one line is recognised too; it
+  was missed before.
+- Constant declarations are highlighted as `variable.other.constant`, and uses of a
+  constant get the matching `readonly` semantic token.
+
+### Maps
+- The 0.4.1 diagnostic `maps can't be dispersed into storage` is gone. Coco 0.9.2 allows
+  dispersing a map again, and the stored map is merged into, never replaced.
+- A new diagnostic covers `gather` of a map, or of a class or array that holds one:
+  `maps can't be gathered from storage: …`. The value is resolved through the
+  `observe` / `mutate` handle that binds it and any `[key]` / `.field` accessors after it.
+  Anything the server can't resolve is skipped rather than guessed at.
+
+### Highlighting
+- The `(names)` in a named-output capture are scoped `variable.other.output`.
+- Superglobal and asset method names really do get `support.function.builtin` /
+  `support.function.asset` now. The generic `.name` state-access rule was matching them
+  first.
+
 ## v0.4.1
 Support for **Cocolang v0.9.1** targeting **PISA v0.8.0**.
 

@@ -1,0 +1,63 @@
+// A stored map cannot be read back whole — its keys cannot be traversed — so
+// `gather` refuses a map, or anything holding one in its field tree. Element
+// access inside the observe block is the way to read one. Dispersing a map is
+// fine again since Coco 0.9.2.
+coco MapGather
+
+class Holder:
+    field tag String
+    field m Map[U64]String
+
+class Plain:
+    field tag String
+
+state logic:
+    balances Map[String]U64
+    h Holder
+    holders Map[U64]Holder
+    plains Map[U64]Plain
+    list []Plain
+
+// EXPECT: maps can't be gathered from storage
+endpoint static Whole() -> (n U64):
+    observe balances <- MapGather.Logic.balances:
+        memory copy = make(Map[String]U64)
+        gather copy <- balances
+        n = copy["a"]
+
+// EXPECT: maps can't be gathered from storage
+endpoint static ClassWithMap() -> (tag String):
+    observe h <- MapGather.Logic.h:
+        memory copy = Holder{}
+        gather copy <- h
+        tag = copy.tag
+
+// The value side is followed through `[key]` and `.field`.
+// EXPECT: maps can't be gathered from storage
+endpoint static NestedField(k U64) -> (n U64):
+    observe holders <- MapGather.Logic.holders:
+        memory inner Map[U64]String
+        gather inner <- holders[k].m
+        n = 1
+
+// Either arrow direction, and from inside a mutate block too.
+// EXPECT: maps can't be gathered from storage
+endpoint dynamic InMutate():
+    mutate balances <- MapGather.Logic.balances:
+        memory copy = make(Map[String]U64)
+        gather balances -> copy
+        balances["a"] = 1
+
+// Map-free values gather fine, map elements included.
+endpoint static PlainOnes(k U64) -> (tag String):
+    observe plains, list <- MapGather.Logic.plains, MapGather.Logic.list:
+        memory p Plain
+        gather p <- plains[k]
+        memory all []Plain
+        gather all <- list
+        tag = p.tag
+
+// So does dispersing a map, now.
+endpoint dynamic Seed():
+    mutate balances <- MapGather.Logic.balances:
+        disperse make(Map[String]U64) -> balances

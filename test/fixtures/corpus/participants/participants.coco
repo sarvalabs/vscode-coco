@@ -17,7 +17,9 @@ state actor:
 endpoint deploy Init():
     mutate U64(0) -> Participants.Logic.checks payer Logic
 
-endpoint enlist Register(label String):
+// Coco 0.9.2 no longer compiles `enlist` endpoints. Setting a label twice is
+// harmless, so the endpoint that used to enlist is simply dynamic now.
+endpoint dynamic Register(label String):
     mutate label -> Participants.Sender.label
 
 // --- actor methods: pure --------------------------------------------------

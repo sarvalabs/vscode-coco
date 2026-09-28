@@ -8,27 +8,70 @@ elements:
 - ptr: 0
   kind: literal
   data:
+    type: string
+    value: '0x066d656d626572'
+- ptr: 1
+  kind: literal
+  data:
+    type: u64
+    value: '0x0308'
+- ptr: 2
+  kind: literal
+  data:
+    type: i64
+    value: '0x0405'
+- ptr: 3
+  kind: literal
+  data:
+    type: bool
+    value: '0x02'
+- ptr: 4
+  kind: literal
+  data:
+    type: u64
+    value: '0x0302'
+- ptr: 5
+  kind: literal
+  data:
+    type: u64
+    value: '0x0364'
+- ptr: 6
+  kind: literal
+  data:
     type: '[]string'
     value: '0x0e1f06766970'
-- ptr: 1
+- ptr: 7
   kind: literal
   data:
     type: string
     value: '0x0670'
-- ptr: 2
+- ptr: 8
   kind: literal
   data:
     type: string
     value: '0x066e6f742061207061727469636970616e74206f66207468697320696e746572616374696f6e'
-- ptr: 3
+- ptr: 9
+  kind: literal
+  data:
+    type: string
+    value: '0x06616c72656164792072656769737465726564'
+- ptr: 10
+  kind: literal
+  data:
+    type: map[string]u64
+    value: '0x0e4f0613263361016202'
+- ptr: 11
   deps:
-  - 5
+  - 14
   kind: typedef
   data: '[]class.Person'
-- ptr: 4
+- ptr: 12
+  kind: typedef
+  data: map[string]u64
+- ptr: 13
   kind: typedef
   data: '[]u64'
-- ptr: 5
+- ptr: 14
   kind: class
   data:
     name: Person
@@ -40,9 +83,9 @@ elements:
       label: age
       type: u64
     methods: []
-- ptr: 6
+- ptr: 15
   deps:
-  - 5
+  - 14
   kind: class
   data:
     name: Wrapper
@@ -54,7 +97,21 @@ elements:
       label: tags
       type: '[]string'
     methods: []
-- ptr: 7
+- ptr: 16
+  kind: class
+  data:
+    name: Profile
+    fields:
+    - slot: 0
+      label: name
+      type: string
+    - slot: 1
+      label: tags
+      type: map[string]u64
+    methods: []
+- ptr: 17
+  deps:
+  - 16
   kind: state
   data:
     mode: logic
@@ -65,7 +122,15 @@ elements:
     - slot: 1
       label: config
       type: string
-- ptr: 8
+    - slot: 2
+      label: scores
+      type: map[string]u64
+    - slot: 3
+      label: profile
+      type: class.Profile
+- ptr: 18
+  deps:
+  - 16
   kind: state
   data:
     mode: actor
@@ -74,9 +139,12 @@ elements:
       label: tag
       type: string
     - slot: 1
+      label: registered
+      type: bool
+    - slot: 2
       label: balance
       type: u64
-- ptr: 9
+- ptr: 19
   kind: interface
   data:
     name: Remote
@@ -114,9 +182,9 @@ elements:
         label: amount
         type: u256
       returns: []
-- ptr: 10
+- ptr: 20
   deps:
-  - 5
+  - 14
   kind: callable
   data:
     name: Make
@@ -135,20 +203,20 @@ elements:
       type: class.Person
     executes:
       asm:
-      - LDPTR1 $0 0x5
+      - LDPTR1 $0 0xe
       - MAKE $0 $0
       - OBTAIN $1 &0
       - OBTAIN $2 &1
-      - LDPTR1 $3 0x5
+      - LDPTR1 $3 0xe
       - MAKE $3 $3
       - SETFLD $3 &0 $1
       - SETFLD $3 &1 $2
       - COPY $0 $3
       - YIELD $0 &0
     catches: []
-- ptr: 11
+- ptr: 21
   deps:
-  - 5
+  - 14
   kind: callable
   data:
     name: Mixed
@@ -167,10 +235,10 @@ elements:
       type: class.Person
     executes:
       asm:
-      - LDPTR1 $0 0x5
+      - LDPTR1 $0 0xe
       - MAKE $0 $0
       - OBTAIN $1 &0
-      - LDPTR1 $2 0x5
+      - LDPTR1 $2 0xe
       - MAKE $2 $2
       - SETFLD $2 &0 $1
       - OBTAIN $1 &1
@@ -178,11 +246,11 @@ elements:
       - COPY $0 $2
       - YIELD $0 &0
     catches: []
-- ptr: 12
+- ptr: 22
   deps:
-  - 0
   - 6
-  - 5
+  - 15
+  - 14
   kind: callable
   data:
     name: Nested
@@ -201,30 +269,30 @@ elements:
       type: class.Wrapper
     executes:
       asm:
-      - LDPTR1 $0 0x6
+      - LDPTR1 $0 0xf
       - MAKE $0 $0
       - OBTAIN $1 &0
       - OBTAIN $2 &1
-      - LDPTR1 $3 0x5
+      - LDPTR1 $3 0xe
       - MAKE $3 $3
       - SETFLD $3 &0 $1
       - SETFLD $3 &1 $2
       - COPY $1 $3
-      - LDPTR1 $2 0x0
+      - LDPTR1 $2 0x6
       - LMAKE $2 $2
-      - LDPTR1 $3 0x6
+      - LDPTR1 $3 0xf
       - MAKE $3 $3
       - SETFLD $3 &0 $1
       - SETFLD $3 &1 $2
       - COPY $0 $3
       - YIELD $0 &0
     catches: []
-- ptr: 13
+- ptr: 23
   deps:
-  - 1
-  - 3
-  - 4
-  - 5
+  - 7
+  - 11
+  - 13
+  - 14
   kind: callable
   data:
     name: InLoop
@@ -240,14 +308,14 @@ elements:
       type: '[]class.Person'
     executes:
       asm:
-      - LDPTR1 $0 0x3
+      - LDPTR1 $0 0xb
       - MAKE $0 $0
       - PMAKE $1 &5
-      - LDPTR1 $2 0x3
+      - LDPTR1 $2 0xb
       - VMAKE $1 $2 $1
       - OBTAIN $2 &0
       - COPY $3 $2
-      - LDPTR1 $4 0x4
+      - LDPTR1 $4 0xd
       - MAKE $4 $4
       - PMAKE $5 &5
       - PMAKE $6 &5
@@ -268,11 +336,11 @@ elements:
       - NOT $6 $6
       - LDPTR1 $7 0x29
       - JUMPI $7 $6
-      - LDPTR1 $6 0x1
+      - LDPTR1 $6 0x7
       - LMAKE $6 $6
       - STR $8 $3
       - JOIN $6 $6 $8
-      - LDPTR1 $8 0x5
+      - LDPTR1 $8 0xe
       - MAKE $8 $8
       - SETFLD $8 &0 $6
       - SETFLD $8 &1 $3
@@ -285,9 +353,9 @@ elements:
       - COPY $0 $1
       - YIELD $0 &0
     catches: []
-- ptr: 14
+- ptr: 24
   deps:
-  - 7
+  - 17
   kind: callable
   data:
     name: Init
@@ -318,9 +386,9 @@ elements:
       - YIELD $0 &0
       - YIELD $1 &1
     catches: []
-- ptr: 15
+- ptr: 25
   deps:
-  - 7
+  - 17
   kind: callable
   data:
     name: SetConfig
@@ -343,9 +411,9 @@ elements:
       - DISPER $1 $0
       - STORE $1
     catches: []
-- ptr: 16
+- ptr: 26
   deps:
-  - 7
+  - 17
   kind: callable
   data:
     name: SetName
@@ -365,9 +433,9 @@ elements:
       - DISPER $1 $0
       - STORE $1
     catches: []
-- ptr: 17
+- ptr: 27
   deps:
-  - 7
+  - 17
   kind: callable
   data:
     name: Grow
@@ -389,7 +457,7 @@ elements:
       - DISPER $1 $0
       - STORE $1
     catches: []
-- ptr: 18
+- ptr: 28
   kind: callable
   data:
     name: IsParticipant
@@ -409,7 +477,7 @@ elements:
       - ACREXIST $0 $0
       - YIELD $0 &0
     catches: []
-- ptr: 19
+- ptr: 29
   kind: callable
   data:
     name: SenderSigned
@@ -426,7 +494,7 @@ elements:
       - ACRSIGN $0 $0
       - YIELD $0 &0
     catches: []
-- ptr: 20
+- ptr: 30
   kind: callable
   data:
     name: Claim
@@ -447,9 +515,9 @@ elements:
       - ACRPARAM $0 $0 $1
       - YIELD $0 &0
     catches: []
-- ptr: 21
+- ptr: 31
   deps:
-  - 2
+  - 8
   kind: callable
   data:
     name: CheckSigned
@@ -469,21 +537,22 @@ elements:
       - ACREXIST $1 $0
       - LDPTR1 $2 0x7
       - JUMPI $2 $1
-      - LDPTR1 $1 0x2
+      - LDPTR1 $1 0x8
       - LMAKE $1 $1
       - THROW $1
       - DEST
       - ACRSIGN $0 $0
       - YIELD $0 &0
     catches: []
-- ptr: 22
+- ptr: 32
   deps:
-  - 8
+  - 9
+  - 18
   kind: callable
   data:
     name: Register
     mode: dynamic
-    kind: enlist
+    kind: invoke
     accepts:
     - slot: 0
       label: tag
@@ -498,6 +567,21 @@ elements:
     executes:
       asm:
       - ORIGIN $0
+      - ALOAD $1 $0 &1
+      - GATHER $2 $1
+      - NOT $3 $2
+      - LDPTR1 $4 0x9
+      - JUMPI $4 $3
+      - LDPTR1 $3 0x9
+      - LMAKE $3 $3
+      - THROW $3
+      - DEST
+      - PMAKE $3 &1
+      - NOT $3 $3
+      - COPY $2 $3
+      - DISPER $1 $2
+      - STORE $1
+      - ORIGIN $0
       - ALOAD $1 $0 &0
       - OBTAIN $2 &0
       - DISPER $1 $2
@@ -508,7 +592,7 @@ elements:
       - YIELD $0 &0
       - YIELD $1 &1
     catches: []
-- ptr: 23
+- ptr: 33
   kind: callable
   data:
     name: Now
@@ -524,7 +608,7 @@ elements:
       - TIMESTAMP $0
       - YIELD $0 &0
     catches: []
-- ptr: 24
+- ptr: 34
   kind: callable
   data:
     name: Cost
@@ -548,7 +632,7 @@ elements:
       - YIELD $0 &0
       - YIELD $1 &1
     catches: []
-- ptr: 25
+- ptr: 35
   kind: callable
   data:
     name: CostUnlabelled
@@ -583,7 +667,7 @@ elements:
       - YIELD $0 &0
       - YIELD $1 &1
     catches: []
-- ptr: 26
+- ptr: 36
   kind: callable
   data:
     name: Fuel
@@ -604,7 +688,7 @@ elements:
       - EFFAVL $0
       - YIELD $0 &1
     catches: []
-- ptr: 27
+- ptr: 37
   kind: callable
   data:
     name: Hash
@@ -628,9 +712,9 @@ elements:
       - GETFLD $0 $0 &0
       - YIELD $0 &0
     catches: []
-- ptr: 28
+- ptr: 38
   deps:
-  - 8
+  - 18
   kind: callable
   data:
     name: Balance
@@ -647,13 +731,13 @@ elements:
     executes:
       asm:
       - OBTAIN $0 &0
-      - ALOAD $1 $0 &1
+      - ALOAD $1 $0 &2
       - YIELD $1 &0
       - DUMP $1
     catches: []
-- ptr: 29
+- ptr: 39
   deps:
-  - 8
+  - 18
   kind: callable
   data:
     name: Credit
@@ -673,7 +757,7 @@ elements:
     executes:
       asm:
       - OBTAIN $0 &0
-      - ALOAD $1 $0 &1
+      - ALOAD $1 $0 &2
       - GATHER $2 $1
       - OBTAIN $3 &1
       - ADD $2 $2 $3
@@ -681,9 +765,9 @@ elements:
       - DISPER $1 $2
       - STORE $1
     catches: []
-- ptr: 30
+- ptr: 40
   deps:
-  - 7
+  - 17
   kind: callable
   data:
     name: ReadName
@@ -700,9 +784,9 @@ elements:
       - YIELD $0 &0
       - DUMP $0
     catches: []
-- ptr: 31
+- ptr: 41
   deps:
-  - 30
+  - 40
   kind: callable
   data:
     name: NameViaFunction
@@ -716,12 +800,12 @@ elements:
     executes:
       asm:
       - CARGS $0
-      - LDPTR1 $1 0x1e
+      - LDPTR1 $1 0x28
       - CALLC $0 $1 $0
       - GETFLD $0 $0 &0
       - YIELD $0 &0
     catches: []
-- ptr: 32
+- ptr: 42
   kind: callable
   data:
     name: CreditVia
@@ -745,7 +829,7 @@ elements:
       asm:
       - OBTAIN $0 &0
       - ORIGIN $1
-      - LDPTR1 $2 0x9
+      - LDPTR1 $2 0x13
       - XBIND $0 $2 $0 $1
       - CARGS $1
       - OBTAIN $2 &1
@@ -756,7 +840,7 @@ elements:
       - GETFLD $0 $0 &0
       - YIELD $0 &0
     catches: []
-- ptr: 33
+- ptr: 43
   kind: callable
   data:
     name: SupplyVia
@@ -774,14 +858,14 @@ elements:
       asm:
       - OBTAIN $0 &0
       - ORIGIN $1
-      - LDPTR1 $2 0x9
+      - LDPTR1 $2 0x13
       - XBIND $0 $2 $0 $1
       - CARGS $1
       - CALLX $0 $0 &1 $1
       - GETFLD $0 $0 &0
       - YIELD $0 &0
     catches: []
-- ptr: 34
+- ptr: 44
   kind: callable
   data:
     name: MintVia
@@ -799,10 +883,277 @@ elements:
       asm:
       - OBTAIN $0 &0
       - ORIGIN $1
-      - LDPTR1 $2 0x9
+      - LDPTR1 $2 0x13
       - XBIND $0 $2 $0 $1
       - CARGS $1
       - OBTAIN $2 &1
       - SETFLD $1 &0 $2
       - CALLX $0 $0 &2 $1
+    catches: []
+- ptr: 45
+  kind: callable
+  data:
+    name: Limits
+    mode: pure
+    kind: invoke
+    accepts: []
+    returns:
+    - slot: 0
+      label: tag
+      type: string
+    - slot: 1
+      label: total
+      type: u64
+    - slot: 2
+      label: floor
+      type: i64
+    - slot: 3
+      label: open
+      type: bool
+    executes:
+      asm:
+      - LDPTR1 $0 0x0
+      - LMAKE $0 $0
+      - YIELD $0 &0
+      - LDPTR1 $0 0x1
+      - LMAKE $0 $0
+      - LDPTR1 $1 0x4
+      - LMAKE $1 $1
+      - ADD $0 $0 $1
+      - LDPTR1 $1 0x5
+      - LMAKE $1 $1
+      - ADD $0 $0 $1
+      - YIELD $0 &1
+      - LDPTR1 $0 0x2
+      - LMAKE $0 $0
+      - YIELD $0 &2
+      - PMAKE $0 &1
+      - NOT $0 $0
+      - YIELD $0 &3
+    catches: []
+- ptr: 46
+  kind: callable
+  data:
+    name: Stamp
+    mode: pure
+    kind: invoke
+    accepts: []
+    returns:
+    - slot: 0
+      label: ts
+      type: u64
+    - slot: 1
+      label: who
+      type: identifier
+    executes:
+      asm:
+      - TIMESTAMP $0
+      - YIELD $0 &0
+      - CALLER $0
+      - YIELD $0 &1
+    catches: []
+- ptr: 47
+  kind: callable
+  data:
+    name: CaptureStorage
+    mode: pure
+    kind: invoke
+    accepts: []
+    returns:
+    - slot: 0
+      label: a
+      type: u64
+    - slot: 1
+      label: r
+      type: u64
+    executes:
+      asm:
+      - LOGIC $0
+      - ORIGIN $1
+      - VOLRES $0 $1 $0 $1
+      - YIELD $0 &0
+      - YIELD $1 &1
+    catches: []
+- ptr: 48
+  kind: callable
+  data:
+    name: AddedOnly
+    mode: pure
+    kind: invoke
+    accepts: []
+    returns:
+    - slot: 0
+      label: added
+      type: u64
+    executes:
+      asm:
+      - LOGIC $0
+      - ORIGIN $1
+      - VOLRES $0 $1 $0 $1
+      - YIELD $0 &0
+    catches: []
+- ptr: 49
+  kind: callable
+  data:
+    name: Verify
+    mode: pure
+    kind: invoke
+    accepts:
+    - slot: 0
+      label: data
+      type: bytes
+    - slot: 1
+      label: signature
+      type: bytes
+    - slot: 2
+      label: pubkey
+      type: bytes
+    returns:
+    - slot: 0
+      label: valid
+      type: bool
+    - slot: 1
+      label: digest
+      type: u256
+    executes:
+      asm:
+      - CARGS $0
+      - OBTAIN $1 &0
+      - OBTAIN $2 &1
+      - OBTAIN $3 &2
+      - SETFLD $0 &0 $1
+      - SETFLD $0 &1 $2
+      - SETFLD $0 &2 $3
+      - LDPTR1 $2 0x3
+      - CALLB $0 $2 $0
+      - GETFLD $0 $0 &0
+      - YIELD $0 &0
+      - CARGS $0
+      - SETFLD $0 &0 $1
+      - LDPTR1 $1 0x1
+      - CALLB $0 $1 $0
+      - GETFLD $0 $0 &0
+      - YIELD $0 &1
+    catches: []
+- ptr: 50
+  deps:
+  - 17
+  kind: callable
+  data:
+    name: AddScores
+    mode: dynamic
+    kind: invoke
+    accepts:
+    - slot: 0
+      label: extra
+      type: map[string]u64
+    returns: []
+    executes:
+      asm:
+      - LLOAD $0 &2
+      - OBTAIN $1 &0
+      - DISPER $0 $1
+      - STORE $0
+    catches: []
+- ptr: 51
+  deps:
+  - 10
+  - 12
+  - 17
+  kind: callable
+  data:
+    name: SeedScores
+    mode: dynamic
+    kind: invoke
+    accepts: []
+    returns: []
+    executes:
+      asm:
+      - LLOAD $0 &2
+      - LDPTR1 $1 0xc
+      - MAKE $1 $1
+      - LDPTR1 $1 0xa
+      - LMAKE $1 $1
+      - DISPER $0 $1
+      - STORE $0
+    catches: []
+- ptr: 52
+  deps:
+  - 16
+  - 17
+  kind: callable
+  data:
+    name: SetProfile
+    mode: dynamic
+    kind: invoke
+    accepts:
+    - slot: 0
+      label: p
+      type: class.Profile
+    returns: []
+    executes:
+      asm:
+      - LLOAD $0 &3
+      - OBTAIN $1 &0
+      - DISPER $0 $1
+      - STORE $0
+    catches: []
+- ptr: 53
+  deps:
+  - 17
+  kind: callable
+  data:
+    name: ScoreOf
+    mode: static
+    kind: invoke
+    accepts:
+    - slot: 0
+      label: key
+      type: string
+    returns:
+    - slot: 0
+      label: score
+      type: u64
+    executes:
+      asm:
+      - LLOAD $0 &2
+      - OBTAIN $1 &0
+      - HASKEY $2 $0 $1
+      - NOT $2 $2
+      - LDPTR1 $3 0x8
+      - JUMPI $3 $2
+      - GETKEY $1 $0 $1
+      - YIELD $1 &0
+      - DEST
+      - DUMP $0
+    catches: []
+- ptr: 54
+  deps:
+  - 17
+  kind: callable
+  data:
+    name: ProfileTag
+    mode: static
+    kind: invoke
+    accepts:
+    - slot: 0
+      label: key
+      type: string
+    returns:
+    - slot: 0
+      label: name
+      type: string
+    - slot: 1
+      label: tag
+      type: u64
+    executes:
+      asm:
+      - LLOAD $0 &3
+      - GETFLD $1 $0 &0
+      - YIELD $1 &0
+      - GETFLD $1 $0 &1
+      - OBTAIN $2 &0
+      - GETKEY $1 $1 $2
+      - YIELD $1 &1
+      - DUMP $0
     catches: []

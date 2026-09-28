@@ -117,7 +117,7 @@ async function validateTextDocument(textDocument: TextDocument): Promise<void> {
 	checkStateFieldReferences(text, stateIndex, interfaceStateIndex, classIndex, diagnostics);
 	checkPayerClauses(text, moduleContext.pisaVersion, diagnostics);
 	checkWholeStateWrites(text, stateIndex, classIndex, diagnostics);
-	checkMapDisperse(text, classIndex, diagnostics);
+	checkMapGather(text, stateIndex, classIndex, diagnostics);
 	checkFieldAccess(text, classIndex, diagnostics);
 	checkFStringChunks(text, classIndex, diagnostics);
 	checkStandardFunctionTypes(text, classIndex, diagnostics);
@@ -126,6 +126,7 @@ async function validateTextDocument(textDocument: TextDocument): Promise<void> {
 	checkAssetMethodCalls(text, diagnostics);
 	checkSuperglobalMethodCalls(text, moduleContext.pisaVersion, classIndex, diagnostics);
 	checkStateQualifiers(text, moduleContext.pisaVersion, interfaceStateIndex, diagnostics);
+	checkEnlistEndpoints(text, diagnostics);
 	checkReservedWordNames(text, diagnostics);
 	const diagnosticSource = path.basename(new URL(textDocument.uri).pathname);
 	for (const diagnostic of diagnostics) {
@@ -300,9 +301,12 @@ documents.listen(connection);
 connection.listen();
 
 const semanticTokenTypes = ["variable", "parameter", "function", "type", "property"];
+// Module constants are `variable` + `readonly`, which VS Code themes as
+// `variable.other.constant` — the scope the grammar gives their declarations.
+const semanticTokenModifiers = ["readonly"];
 const semanticTokensLegend: SemanticTokensLegend = {
 	tokenTypes: semanticTokenTypes,
-	tokenModifiers: []
+	tokenModifiers: semanticTokenModifiers
 };
 
 const builtinTypeNames = new Set<string>([
@@ -1755,6 +1759,41 @@ const parseLiteralEntries = (
 	return results;
 };
 
+// collectModuleConstants returns the name of every module-level constant, from
+// both spellings: the single line `pub? const NAME Type = value`, and each
+// `NAME Type = value` line of a `pub? const:` group (Coco 0.9.2), which runs
+// until the next line back in column 0.
+const collectModuleConstants = (lines: string[]): Set<string> => {
+	const constants = new Set<string>();
+	let inGroup = false;
+	for (const rawLine of lines) {
+		const line = stripCommentsAndStrings(rawLine);
+		if (line.trim().length === 0) {
+			continue;
+		}
+
+		if (inGroup) {
+			const member = line.match(/^\s+([A-Za-z_][A-Za-z0-9_]*)\b/);
+			if (member) {
+				constants.add(member[1]);
+				continue;
+			}
+			inGroup = false;
+		}
+
+		if (/^(?:pub\s+)?const\s*:\s*$/.test(line)) {
+			inGroup = true;
+			continue;
+		}
+
+		const single = line.match(/^(?:pub\s+)?const\s+([A-Za-z_][A-Za-z0-9_]*)\b/);
+		if (single) {
+			constants.add(single[1]);
+		}
+	}
+	return constants;
+};
+
 const checkUndefinedVariables = (
 	text: string,
 	classIndex: ClassIndex,
@@ -1776,10 +1815,7 @@ const checkUndefinedVariables = (
 	if (stateIndex.moduleName) {
 		typeNames.add(stateIndex.moduleName);
 	}
-	const moduleConstants = new Set<string>();
-	for (const constMatch of text.matchAll(/^const\s+([A-Za-z_][A-Za-z0-9_]*)\b/gm)) {
-		moduleConstants.add(constMatch[1]);
-	}
+	const moduleConstants = collectModuleConstants(lines);
 
 	for (const scope of scopes) {
 		const scopeStack: Array<{ indent: number; defined: Set<string> }> = [
@@ -2940,12 +2976,11 @@ const ASSET_METHODS = new Map<string, { args: string[]; returns: string[]; quali
 // rejects a call outside that window rather than silently ignoring it.
 //
 // Since Coco 0.9.1 every one of these tables declares argument names, and the
-// compiler matches them positionally. A return carries a name only where the
-// compiler declares one: `Environment`'s returns are a bare type list, while
-// `Builtins` and the `Actor` methods name theirs.
+// compiler matches them positionally. Every return is named too, and since
+// 0.9.2 the `(names) <- call()` capture checks those names on all four tables.
 type BuiltinMethodSignature = {
 	args: Array<{ name: string; type: string }>;
-	returns: Array<{ name?: string; type: string }>;
+	returns: Array<{ name: string; type: string }>;
 	since?: PisaVersion;
 	until?: PisaVersion;
 	replacedBy?: string;
@@ -2953,35 +2988,35 @@ type BuiltinMethodSignature = {
 };
 
 const ENVIRONMENT_METHODS = new Map<string, BuiltinMethodSignature>([
-	["Timestamp", { args: [], returns: [{ type: "U64" }], detail: "Current block timestamp, in nanoseconds since the Unix epoch" }],
-	["ClusterID", { args: [], returns: [{ type: "String" }], until: "0.3.2", detail: "Cluster the logic runs on (PISA 0.3.2 only)" }],
-	["EffortCapacity", { args: [], returns: [{ type: "U64" }], since: "0.4.0", detail: "Total fuel available for this execution" }],
-	["EffortAvailable", { args: [], returns: [{ type: "U64" }], since: "0.4.0", detail: "Remaining fuel" }],
+	["Timestamp", { args: [], returns: [{ name: "timestamp", type: "U64" }], detail: "Current block timestamp, in nanoseconds since the Unix epoch" }],
+	["ClusterID", { args: [], returns: [{ name: "cluster_id", type: "String" }], until: "0.3.2", detail: "Cluster the logic runs on (PISA 0.3.2 only)" }],
+	["EffortCapacity", { args: [], returns: [{ name: "effort_capacity", type: "U64" }], since: "0.4.0", detail: "Total fuel available for this execution" }],
+	["EffortAvailable", { args: [], returns: [{ name: "effort_available", type: "U64" }], since: "0.4.0", detail: "Remaining fuel" }],
 	["StorageResult", {
 		args: [{ name: "account_id", type: "Identifier" }, { name: "payer_id", type: "Identifier" }],
-		returns: [{ type: "U64" }, { type: "U64" }],
+		returns: [{ name: "added", type: "U64" }, { name: "removed", type: "U64" }],
 		since: "0.8.0",
 		detail: "Storage bytes (added, removed) so far in this interaction for account_id, charged to payer_id"
 	}],
 	["VolumeCapacity", {
-		args: [], returns: [{ type: "U64" }], since: "0.4.0", until: "0.7.1",
+		args: [], returns: [{ name: "volume_capacity", type: "U64" }], since: "0.4.0", until: "0.7.1",
 		replacedBy: "Environment.StorageResult(account_id: ..., payer_id: ...)",
 		detail: "Total storage space available (removed in PISA 0.8.0)"
 	}],
 	["VolumeAvailable", {
-		args: [], returns: [{ type: "U64" }], since: "0.4.0", until: "0.7.1",
+		args: [], returns: [{ name: "volume_available", type: "U64" }], since: "0.4.0", until: "0.7.1",
 		replacedBy: "Environment.StorageResult(account_id: ..., payer_id: ...)",
 		detail: "Remaining storage space (removed in PISA 0.8.0)"
 	}]
 ]);
 
 const INVOCATION_METHODS = new Map<string, BuiltinMethodSignature>([
-	["ID", { args: [], returns: [{ type: "Identifier" }], detail: "Unique ID of this invocation" }],
-	["__id__", { args: [], returns: [{ type: "Identifier" }], detail: "Alias of Invocation.ID()" }],
-	["Caller", { args: [], returns: [{ type: "Identifier" }], since: "0.5.0", detail: "Immediate caller of this endpoint" }],
-	["Kind", { args: [], returns: [{ type: "String" }], until: "0.3.2", detail: "Interaction kind (PISA 0.3.2 only)" }],
-	["FuelLimit", { args: [], returns: [{ type: "U64" }], until: "0.3.2", detail: "Fuel limit of the interaction (PISA 0.3.2 only)" }],
-	["FuelPrice", { args: [], returns: [{ type: "U256" }], until: "0.3.2", detail: "Fuel price of the interaction (PISA 0.3.2 only)" }]
+	["ID", { args: [], returns: [{ name: "id", type: "Identifier" }], detail: "Unique ID of this invocation" }],
+	["__id__", { args: [], returns: [{ name: "__id__", type: "Identifier" }], detail: "Alias of Invocation.ID()" }],
+	["Caller", { args: [], returns: [{ name: "caller", type: "Identifier" }], since: "0.5.0", detail: "Immediate caller of this endpoint" }],
+	["Kind", { args: [], returns: [{ name: "kind", type: "String" }], until: "0.3.2", detail: "Interaction kind (PISA 0.3.2 only)" }],
+	["FuelLimit", { args: [], returns: [{ name: "fuel_limit", type: "U64" }], until: "0.3.2", detail: "Fuel limit of the interaction (PISA 0.3.2 only)" }],
+	["FuelPrice", { args: [], returns: [{ name: "fuel_price", type: "U256" }], until: "0.3.2", detail: "Fuel price of the interaction (PISA 0.3.2 only)" }]
 ]);
 
 const BUILTINS_METHODS = new Map<string, BuiltinMethodSignature>([
@@ -3049,9 +3084,39 @@ const SUPERGLOBAL_ARGUMENT_MESSAGES = new Map<string, ArgumentMessages>([
 	}]
 ]);
 
-// Only the `Actor(id).M()` type methods accept the `(name) <- call()` capture
-// form; the grammar does not even parse it for the other three superglobals.
-const CAPTURE_CAPABLE_SUPERGLOBALS = new Set<string>(["Actor"]);
+// CaptureMessages words each `(outputs) <- call()` error the way the compiler
+// does for one call family. Environment, Builtins and asset share one phrasing
+// (environment.rs, builtins.rs, assets.rs); Invocation has a single output and
+// leaves the position out; the Actor type methods are checked from their own
+// branch in compiler.rs. Only a bare identifier parses as an output, so the
+// compiler's own "not a name" error is unreachable — the server uses its
+// wording for what would otherwise surface as an unrecognised `)<-` token.
+type CaptureMessages = {
+	count: (method: string, expected: number, found: number) => string;
+	name: (method: string, index: number, expected: string, used: string) => string;
+	notName: (method: string, index: number) => string;
+};
+
+const DEFAULT_CAPTURE_MESSAGES: CaptureMessages = {
+	count: (method, expected, found) =>
+		`'${method}' returns ${expected} value(s), but ${found} output(s) were captured`,
+	name: (method, index, expected, used) =>
+		`'${method}' returns value named '${expected}' at position ${index}, used output '${used}'`,
+	notName: (method, index) => `output of '${method}' at position ${index} is not a name`
+};
+
+const SUPERGLOBAL_CAPTURE_MESSAGES = new Map<string, CaptureMessages>([
+	["Invocation", {
+		count: (method, _expected, found) => `'${method}' returns 1 value, but ${found} output(s) were captured`,
+		name: (method, _index, expected, used) => `'${method}' returns value named '${expected}', used output '${used}'`,
+		notName: (method) => `output of '${method}' is not a name`
+	}],
+	["Actor", {
+		count: (method, expected, found) => `'${method}' returns ${expected} value(s), but ${found} were captured`,
+		name: (_method, _index, expected, used) => `expected return name '${expected}', found '${used}'`,
+		notName: (method) => `return capture for '${method}' must be a simple name`
+	}]
+]);
 
 type SuperglobalCall = {
 	superglobal: string;
@@ -3083,7 +3148,7 @@ const effectiveArgumentName = (argumentText: string): { name: string; valueText:
 // signatureLabel renders a builtin signature the way the reference docs do.
 const signatureLabel = (name: string, signature: BuiltinMethodSignature): string => {
 	const args = signature.args.map(arg => `${arg.name} ${arg.type}`).join(", ");
-	const rendered = signature.returns.map(ret => ret.name ? `${ret.name} ${ret.type}` : ret.type);
+	const rendered = signature.returns.map(ret => `${ret.name} ${ret.type}`);
 	const returns = rendered.length > 0 ? ` -> (${rendered.join(", ")})` : "";
 	return `${name}(${args})${returns}`;
 };
@@ -3448,10 +3513,32 @@ const collectQualifierCallables = (lines: string[]): QualifierCallable[] => {
 	return results;
 };
 
-// checkStateQualifiers infers the qualifier each endpoint and function needs
-// from what its body actually does — mutate, observe, asset methods, calls into
-// other callables, and cross-logic interface calls — and reports any declaration
-// that does not match exactly. `deploy` and `enlist` endpoints are exempt.
+// checkEnlistEndpoints reports every `endpoint enlist`. Coco 0.9.2 still parses
+// the lifecycle — `enlist` stays a reserved word — but codegen rejects it on
+// every PISA target, legacy ones included, because MOI has no enlist
+// interaction to run it with.
+const checkEnlistEndpoints = (
+	text: string,
+	diagnostics: Diagnostic[]
+): void => {
+	const lines = text.split(/\r?\n/);
+	for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+		const match = stripCommentsAndStrings(lines[lineIndex]).match(/^(endpoint\s+)(enlist)\b/);
+		if (!match) {
+			continue;
+		}
+		diagnostics.push({
+			severity: DiagnosticSeverity.Error,
+			range: {
+				start: { line: lineIndex, character: match[1].length },
+				end: { line: lineIndex, character: match[1].length + match[2].length }
+			},
+			message: "enlist endpoints are not supported",
+			source: 'ex'
+		});
+	}
+};
+
 // checkReservedWordNames flags declarations that reuse a reserved word. The
 // compiler reports these as `Unrecognized token`, which points at the token
 // rather than explaining that the name itself is the problem.
@@ -3515,6 +3602,10 @@ const checkReservedWordNames = (
 	}
 };
 
+// checkStateQualifiers infers the qualifier each endpoint and function needs
+// from what its body actually does — mutate, observe, asset methods, calls into
+// other callables, and cross-logic interface calls — and reports any declaration
+// that does not match exactly. `deploy` and `endpoint asset` are exempt.
 const checkStateQualifiers = (
 	text: string,
 	pisaVersion: PisaVersion,
@@ -3634,8 +3725,10 @@ const checkStateQualifiers = (
 	}
 
 	for (const callable of callables) {
-		// deploy and enlist are dynamic by definition, and `endpoint asset` is
-		// exempt as well — the compiler skips all three.
+		// deploy is dynamic by definition and the compiler skips `endpoint asset`
+		// too. An enlist endpoint is already reported by checkEnlistEndpoints —
+		// the compiler stops there — so a qualifier error on top would only
+		// suggest a fix that still does not compile.
 		if (callable.lifecycle === "deploy" || callable.lifecycle === "enlist" || callable.isAssetQualified) {
 			continue;
 		}
@@ -3662,19 +3755,20 @@ const checkStateQualifiers = (
 	}
 };
 
-// checkSuperglobalReturnCapture validates the `(names) <- call()` capture form
-// in front of a superglobal call. Only the Actor type methods parse it at all,
-// and there the compiler insists the captured names are exactly the ones the
-// method declares, in order.
-const checkSuperglobalReturnCapture = (
-	call: SuperglobalCall,
-	signature: BuiltinMethodSignature,
-	receiverLabel: string,
+// checkReturnCapture validates the optional `(names) <- call()` capture in front
+// of a superglobal or asset call: as many names as the method has outputs, each
+// one the output's declared name at that position. `receiverStart` is where the
+// call's receiver (`Environment`, `asset`, `Actor`) begins.
+const checkReturnCapture = (
 	normalizedText: string,
+	receiverStart: number,
+	method: string,
+	returnNames: string[],
+	messages: CaptureMessages,
 	offsets: number[],
 	diagnostics: Diagnostic[]
 ): void => {
-	const before = normalizedText.slice(0, call.receiverStart);
+	const before = normalizedText.slice(0, receiverStart);
 	// Keep the capture list on the call's own line — matching across a newline
 	// would turn the previous statement's `<-` into a false positive.
 	const capture = before.match(/\(([^()\n]*)\)[ \t]*<-[ \t]*$/);
@@ -3682,43 +3776,56 @@ const checkSuperglobalReturnCapture = (
 		return;
 	}
 
-	const captureRange = {
-		start: offsetToPosition(offsets, before.length - capture[0].length),
-		end: offsetToPosition(offsets, call.receiverStart)
-	};
+	const listStart = before.length - capture[0].length + 1;
+	const entries: Array<{ text: string; start: number }> = [];
+	let segmentStart = 0;
+	for (const segment of capture[1].split(",")) {
+		const leading = segment.length - segment.trimStart().length;
+		entries.push({ text: segment.trim(), start: listStart + segmentStart + leading });
+		segmentStart += segment.length + 1;
+	}
+	// The grammar allows one trailing comma.
+	if (entries.length > 0 && entries[entries.length - 1].text === "") {
+		entries.pop();
+	}
+	if (entries.length === 0) {
+		return;
+	}
 
-	if (!CAPTURE_CAPABLE_SUPERGLOBALS.has(call.superglobal)) {
+	if (entries.length !== returnNames.length) {
 		diagnostics.push({
 			severity: DiagnosticSeverity.Error,
-			range: captureRange,
-			message: `${receiverLabel}.${call.method}() does not support the '(name) <- ' return capture — assign the call directly instead`,
+			range: {
+				start: offsetToPosition(offsets, listStart - 1),
+				end: offsetToPosition(offsets, receiverStart)
+			},
+			message: messages.count(method, returnNames.length, entries.length),
 			source: 'ex'
 		});
 		return;
 	}
 
-	const names = capture[1].split(",").map(part => part.trim()).filter(part => part.length > 0);
-	if (names.length !== signature.returns.length) {
-		diagnostics.push({
-			severity: DiagnosticSeverity.Error,
-			range: captureRange,
-			message: `'${call.method}' returns ${signature.returns.length} value(s), but ${names.length} were captured`,
-			source: 'ex'
-		});
-		return;
-	}
-
-	for (let index = 0; index < names.length; index++) {
-		const expected = signature.returns[index].name;
-		if (expected && names[index] !== expected) {
+	entries.forEach((entry, index) => {
+		const range = {
+			start: offsetToPosition(offsets, entry.start),
+			end: offsetToPosition(offsets, entry.start + Math.max(entry.text.length, 1))
+		};
+		if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(entry.text)) {
 			diagnostics.push({
 				severity: DiagnosticSeverity.Error,
-				range: captureRange,
-				message: `expected return name '${expected}', found '${names[index]}'`,
+				range,
+				message: messages.notName(method, index),
+				source: 'ex'
+			});
+		} else if (entry.text !== returnNames[index]) {
+			diagnostics.push({
+				severity: DiagnosticSeverity.Error,
+				range,
+				message: messages.name(method, index, returnNames[index], entry.text),
 				source: 'ex'
 			});
 		}
-	}
+	});
 };
 
 const checkSuperglobalMethodCalls = (
@@ -3830,7 +3937,15 @@ const checkSuperglobalMethodCalls = (
 			}
 		}
 
-		checkSuperglobalReturnCapture(call, signature, receiverLabel, normalizedText, offsets, diagnostics);
+		checkReturnCapture(
+			normalizedText,
+			call.receiverStart,
+			call.method,
+			signature.returns.map(ret => ret.name),
+			SUPERGLOBAL_CAPTURE_MESSAGES.get(call.superglobal) ?? DEFAULT_CAPTURE_MESSAGES,
+			offsets,
+			diagnostics
+		);
 	}
 };
 
@@ -4504,9 +4619,9 @@ const isAtomicStateType = (fieldType: string, classIndex: ClassIndex): boolean =
 };
 
 // typeContainsMap reports whether a declared type is a map, or a class that
-// reaches one through its fields. Coco 0.9.1 rejects the whole family from
-// `gather` / `disperse`, not just a bare `Map[K]V`, so the walk is recursive.
-// `seen` breaks the cycle a self-referential class would otherwise create.
+// reaches one through its fields. The compiler refuses to `gather` that whole
+// family, not just a bare `Map[K]V`, so the walk is recursive. `seen` breaks the
+// cycle a self-referential class would otherwise create.
 const typeContainsMap = (typeText: string, classIndex: ClassIndex, seen: Set<string> = new Set()): boolean => {
 	const trimmed = typeText.trim();
 	if (trimmed.startsWith("Map[")) {
@@ -4537,91 +4652,147 @@ const typeContainsMap = (typeText: string, classIndex: ClassIndex, seen: Set<str
 	return false;
 };
 
-// sourceTypeOfDisperse pulls the value side off a `disperse` statement, which
-// the grammar spells in either direction: `disperse <source> -> <target>` or
-// `disperse <target> <- <source>`. A `make(T)` or `T{...}` literal names its
-// type outright; a bare identifier names a variable whose declared type has to
-// be looked up. Anything more involved is left alone rather than guessed at.
-const sourceTypeOfDisperse = (scanLine: string): { typeText: string; start: number; isVariable?: boolean } | null => {
-	const verb = scanLine.match(/\bdisperse\b/);
-	if (!verb || verb.index === undefined) {
-		return null;
+// elementTypeOf steps one `[...]` index into a declared type: a map yields its
+// value type, an array its element type, and anything else null.
+const elementTypeOf = (typeText: string): string | null => {
+	const trimmed = typeText.trim();
+	if (trimmed.startsWith("Map[")) {
+		const keyEnd = findMatchingCloseParen(trimmed, "Map".length);
+		const value = keyEnd < 0 ? "" : trimmed.slice(keyEnd + 1).trim();
+		return value.length > 0 ? value : null;
 	}
+	const array = trimmed.match(/^(?:\[\]|\[\d+\])([\s\S]+)$/);
+	return array ? array[1] : null;
+};
 
-	const arrows = findMutateObserveArrows(scanLine, verb.index);
-	if (arrows.length === 0) {
-		return null;
+// resolveAccessPathType follows a chain of `[key]` and `.field` accessors from a
+// declared type — the `[k].data` in `gather t <- h[k].data`. ClassIndex keeps a
+// field's element type but not its map key, so a class field that is a map
+// comes back as the bare placeholder `Map[]`: still a map, but not indexable
+// any further. null means the path could not be followed.
+const resolveAccessPathType = (typeText: string, path: string, classIndex: ClassIndex): string | null => {
+	let current = typeText;
+	let i = 0;
+	while (i < path.length) {
+		const ch = path[i];
+		if (/\s/.test(ch)) {
+			i++;
+			continue;
+		}
+
+		let next: string | null = null;
+		if (ch === "[") {
+			const close = findMatchingCloseParen(path, i);
+			if (close < 0) {
+				return null;
+			}
+			next = elementTypeOf(current);
+			i = close + 1;
+		} else if (ch === ".") {
+			const field = path.slice(i + 1).match(/^\s*([A-Za-z_][A-Za-z0-9_]*)/);
+			const entry = field ? classIndex.classes.get(current.trim())?.fieldTypes.get(field[1]) : undefined;
+			if (!field || !entry) {
+				return null;
+			}
+			next = entry.isMap ? "Map[]" : entry.isCollection ? `[]${entry.typeName}` : entry.typeName;
+			i += 1 + field[0].length;
+		}
+
+		if (next === null) {
+			return null;
+		}
+		current = next;
 	}
-	const arrow = arrows[0];
-	const source = arrow.token === "->"
-		? { text: scanLine.slice(verb.index + verb[0].length, arrow.index), offset: verb.index + verb[0].length }
-		: { text: scanLine.slice(arrow.index + 2), offset: arrow.index + 2 };
+	return current;
+};
 
-	const make = source.text.match(/^\s*make\s*\(\s*([\s\S]*?)\s*\)\s*$/);
-	if (make) {
-		return { typeText: make[1], start: source.offset + source.text.indexOf(make[1]) };
+// storageHandleType finds the `observe` / `mutate` block that binds `name` as a
+// storage handle around `lineIndex` — `observe h <- M.Logic.field:` — and
+// returns the declared type of the state field behind it. Only this module's
+// own state is resolved; anything else returns null.
+const storageHandleType = (lines: string[], lineIndex: number, name: string, stateIndex: StateIndex): string | null => {
+	let indent = lines[lineIndex].match(/^\s*/)?.[0].length ?? 0;
+	for (let cursor = lineIndex - 1; cursor >= 0 && indent > 0; cursor--) {
+		const line = stripCommentsAndStrings(lines[cursor]);
+		const lineIndent = line.match(/^\s*/)?.[0].length ?? 0;
+		if (line.trim().length === 0 || lineIndent >= indent) {
+			continue;
+		}
+
+		// Every line out here is an enclosing block header — `if`, `for`, the
+		// callable itself — so only the observe/mutate ones bind handles.
+		indent = lineIndent;
+		const info = extractMutateObserveInfo(line);
+		if (!info.verb || !info.stateRef || !/:\s*$/.test(line)) {
+			continue;
+		}
+		const position = info.targets.findIndex(target => target.name === name);
+		if (position < 0) {
+			continue;
+		}
+
+		const ref = splitTopLevelSegments(info.stateRef, ",")[position];
+		const parsed = ref ? parseStateFieldRef(ref.text) : null;
+		if (!parsed || parsed.rootName !== stateIndex.moduleName) {
+			return null;
+		}
+		const fieldTypes = parsed.actorRef === "Logic" ? stateIndex.logicFieldTypes : stateIndex.actorFieldTypes;
+		return fieldTypes.get(parsed.fieldName) ?? null;
 	}
-
-	// `Holder{...}`, `Map[U64]String{}`, `[]Holder{...}` — the type is whatever
-	// sits in front of the opening brace.
-	const literal = source.text.match(/^\s*((?:\[\]|\[\d+\]|Map\[[^\]]*\])*[A-Za-z_][A-Za-z0-9_]*)\s*\{/);
-	if (literal) {
-		return { typeText: literal[1], start: source.offset + source.text.indexOf(literal[1]) };
-	}
-
-	const variable = source.text.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*$/);
-	if (variable && !RESERVED_WORDS.has(variable[1])) {
-		return { typeText: variable[1], start: source.offset + source.text.indexOf(variable[1]), isVariable: true };
-	}
-
 	return null;
 };
 
-// checkMapDisperse catches a `disperse` whose value is a map, or a class holding
-// one anywhere in its field tree. Coco 0.9.1 stopped letting maps cross the
-// storage boundary in one move; the keys have to be tracked in a separate array
-// and the elements written one at a time.
-const checkMapDisperse = (
+// checkMapGather catches a `gather` out of storage whose value is a map, or a
+// class or array holding one anywhere in its field tree. A stored map cannot be
+// read back whole — its keys cannot be traversed — so the compiler refuses it;
+// element access (`m[k]`) inside the observe block is the way to read one.
+// `disperse` of a map is allowed again since Coco 0.9.2, and merges.
+const checkMapGather = (
 	text: string,
+	stateIndex: StateIndex,
 	classIndex: ClassIndex,
 	diagnostics: Diagnostic[]
 ): void => {
-	const lines = text.split(/\r?\n/);
-	const callableIndex = buildCallableIndex(text);
+	if (!stateIndex.moduleName) {
+		return;
+	}
 
+	const lines = text.split(/\r?\n/);
 	for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
-		const source = sourceTypeOfDisperse(stripCommentsAndStrings(lines[lineIndex]));
-		if (!source) {
+		const scanLine = stripCommentsAndStrings(lines[lineIndex]);
+		const verb = scanLine.match(/^\s*gather\b/);
+		if (!verb) {
+			continue;
+		}
+		const arrows = findMutateObserveArrows(scanLine, verb[0].length);
+		if (arrows.length === 0) {
 			continue;
 		}
 
-		// A variable carries its type in its declaration — an endpoint parameter,
-		// a `memory x T` line or a constructor assignment. Leave it alone when the
-		// type cannot be pinned down, so an unresolved name is never guessed at.
-		let typeText = source.typeText;
-		if (source.isVariable) {
-			const declared = findTypeForReceiver(text, source.typeText, lineIndex, callableIndex);
-			if (!declared) {
+		// The grammar takes both `gather <targets> <- <sources>` and
+		// `gather <sources> -> <targets>`.
+		const arrow = arrows[0];
+		const sourcesStart = arrow.token === "<-" ? arrow.index + 2 : verb[0].length;
+		const sourcesEnd = arrow.token === "<-" ? scanLine.length : arrow.index;
+		for (const source of splitTopLevelSegments(scanLine.slice(sourcesStart, sourcesEnd), ",")) {
+			const access = source.text.match(/^([A-Za-z_][A-Za-z0-9_]*)([\s\S]*)$/);
+			const handleType = access ? storageHandleType(lines, lineIndex, access[1], stateIndex) : null;
+			const valueType = access && handleType ? resolveAccessPathType(handleType, access[2], classIndex) : null;
+			if (!valueType || !typeContainsMap(valueType, classIndex)) {
 				continue;
 			}
-			// findTypeForReceiver drops a `Map[K]V`'s key and value, reporting the
-			// bare word `Map` — which is a reserved word, so it can only be that.
-			typeText = declared === "Map" ? "Map[]" : declared;
-		}
 
-		if (!typeContainsMap(typeText, classIndex)) {
-			continue;
+			const start = sourcesStart + source.start;
+			diagnostics.push({
+				severity: DiagnosticSeverity.Error,
+				range: {
+					start: { line: lineIndex, character: start },
+					end: { line: lineIndex, character: start + source.text.length }
+				},
+				message: "maps can't be gathered from storage: consider storing map keys in separate array and retrieve map elements one by one",
+				source: 'ex'
+			});
 		}
-
-		diagnostics.push({
-			severity: DiagnosticSeverity.Error,
-			range: {
-				start: { line: lineIndex, character: source.start },
-				end: { line: lineIndex, character: source.start + source.typeText.length }
-			},
-			message: "maps can't be dispersed into storage: consider storing map keys in separate array and setting map elements one by one",
-			source: 'ex'
-		});
 	}
 };
 
@@ -5788,6 +5959,8 @@ const checkAssetMethodCalls = (text: string, diagnostics: Diagnostic[]): void =>
 				}
 			}
 		}
+
+		checkReturnCapture(normalizedText, fullMatchStart, methodName, methodInfo.returns, DEFAULT_CAPTURE_MESSAGES, lineOffsets, diagnostics);
 	}
 };
 
@@ -5815,6 +5988,8 @@ const buildSemanticTokens = (
 		}
 	}
 
+	const moduleConstants = collectModuleConstants(lines);
+	const readonlyModifier = 1 << semanticTokenModifiers.indexOf("readonly");
 	const globalVariables = new Set<string>();
 	for (const variable of collectVariableDeclarationsInRange(lines, 0, lines.length - 1)) {
 		if (!lineScopes[variable.line]) {
@@ -5868,6 +6043,8 @@ const buildSemanticTokens = (
 				builder.push(lineIndex, startChar, name.length, semanticTokenTypes.indexOf("parameter"), 0);
 			} else if (variables.has(name)) {
 				builder.push(lineIndex, startChar, name.length, semanticTokenTypes.indexOf("variable"), 0);
+			} else if (moduleConstants.has(name) && !isMemberAccess(scanLine, startChar)) {
+				builder.push(lineIndex, startChar, name.length, semanticTokenTypes.indexOf("variable"), readonlyModifier);
 			} else if (isMemberAccess(scanLine, startChar)) {
 				builder.push(lineIndex, startChar, name.length, semanticTokenTypes.indexOf("property"), 0);
 			}

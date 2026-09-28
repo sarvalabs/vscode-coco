@@ -1,0 +1,15 @@
+// Coco 0.9.2 still parses `endpoint enlist` but no longer compiles it: MOI has
+// no enlist interaction. Drop the endpoint, or make it dynamic and guard it.
+coco EnlistEndpoint
+
+state actor:
+    balance U64
+
+// EXPECT: enlist endpoints are not supported
+endpoint enlist Register():
+    mutate 0 -> EnlistEndpoint.Sender.balance
+
+// A qualifier does not rescue it, and no qualifier error is piled on top.
+// EXPECT: enlist endpoints are not supported
+endpoint enlist dynamic Join():
+    mutate 0 -> EnlistEndpoint.Sender.balance

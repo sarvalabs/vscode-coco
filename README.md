@@ -13,11 +13,11 @@ The VS Code Coco Programming Language extension provides language support for th
 
 ### Compatibility
 
-**v0.4.1 targets Coco `0.9.1` with PISA `0.8.0`** — what `coco nut init` writes and what
+**v0.4.2 targets Coco `0.9.2` with PISA `0.8.0`** — what `coco nut init` writes and what
 new projects use. The pre-0.6 vocabulary (`persistent` / `ephemeral` / `readonly`
 qualifiers, `state persistent:` blocks, the `Receiver` and `State` superglobals) is no
 longer supported; sources still written that way get highlighting for the parts they share
-with 0.9.1 and no diagnostics.
+with 0.9.2 and no diagnostics.
 
 Within the modern syntax the extension still respects your target: the checks that depend
 on it read `[target.pisa] version` from the `coco.nut` next to your source, so a `0.7.1`
@@ -33,14 +33,17 @@ editing that declares the same `coco <Module>` — plus its `coco.nut`, and repo
 | Area | Examples |
 |------|----------|
 | **State qualifiers** | `endpoint GetName()` that observes state must say `static`; an omitted qualifier means `pure`, not `static`. Requirements propagate through called functions, asset methods and cross-logic interface calls. |
+| **`enlist` endpoints** | `endpoint enlist …` no longer compiles as of Coco 0.9.2, on any PISA target: delete the endpoint, or make it `dynamic` and guard it. |
 | **`payer` clause** (PISA 0.8.0) | `mutate v -> M.Logic.f payer Logic \| Sender \| Actor(id)` — rejected on `observe`, on actor state, and on pre-0.8.0 targets. |
 | **Actor methods** (PISA 0.8.0) | `Actor(id).Exists()`, `.HasSigned()`, `.Param(name: …)` — unknown methods, wrong arity, wrong argument names and types, and the `(exists) <- ` return-capture names. |
 | **Environment** | `Environment.StorageResult(account_id, payer_id)` on 0.8.0; `VolumeCapacity()` / `VolumeAvailable()` flagged as removed there, and still accepted below it. |
 | **Superglobal arguments** | Since Coco 0.9.1 a labelled or bare-variable argument to `Environment`, `Builtins` or an `Actor` method must use the name declared at its position — a bare identifier supplies its own name, so `Builtins.Sha256(blob)` is wrong where `data` is declared. Literals, casts and `Sender` need no label. |
+| **Named outputs** | Since Coco 0.9.2 `(timestamp) <- Environment.Timestamp()` works on `Environment`, `Invocation`, `Builtins` and `asset` calls too. The captured names must be the declared output names, in order and all of them — `(added, removed) <- Environment.StorageResult(…)`. |
+| **Constants** | Single-line `const` and grouped `const:` blocks (Coco 0.9.2) are known names, highlighted as constants. |
 | **Field-name shorthand** | `Person{name, age}` is understood; a bare name that is not a field of the class is reported. |
 | **Reserved words** | `memory payer = ...` or an argument named `actor` is caught before the compiler's `Unrecognized token`. |
-| **Atomic storage** | `mutate v -> M.Logic.someMap` is rejected — maps, arrays and classes in state can only be moved with a `mutate` block and `disperse`. Since 0.9.1 maps cannot be dispersed at all, including inside a class's field tree. |
-| **Asset methods** | Names, arities and argument labels, checked against the compiler's own table (note there is no `asset.Define` — assets are created through Cocolab's `create`). |
+| **Atomic storage** | `mutate v -> M.Logic.someMap` is rejected — maps, arrays and classes in state can only be moved with a `mutate` block and `disperse`. A map can't be `gather`ed back out of storage, and neither can anything that holds one in its field tree. Dispersing a map works again as of 0.9.2, and merges into the stored map. |
+| **Asset methods** | Names, arities, argument labels and output names, checked against the compiler's own table (note there is no `asset.Define` — assets are created through Cocolab's `create`). |
 | **Types and members** | class/event literal fields, field access, f-string expressions, `emit` payloads, state paths, undefined variables. |
 
 ### Supported files
@@ -97,7 +100,7 @@ built around agreeing with `coco` rather than with itself:
 
 | Fixture group | Contract |
 |---------------|----------|
-| `test/fixtures/valid/` | Every feature of Coco 0.9.1 / PISA 0.8.0, in its correct form. No diagnostics allowed. |
+| `test/fixtures/valid/` | Every feature of Coco 0.9.2 / PISA 0.8.0, in its correct form. No diagnostics allowed. |
 | `test/fixtures/corpus/` | Five complete modules of realistic Coco — a token ledger, a native asset, a CRUD registry, cross-logic interfaces and participant queries. No diagnostics allowed. |
 | `test/fixtures/invalid/` | One mistake per file. Each `// EXPECT: <text>` must be matched by a diagnostic, and nothing else may be reported. |
 | `test/fixtures/legacy/` | The same, against a `coco.nut` targeting PISA `0.7.1`, so the version gates are exercised in both directions. |

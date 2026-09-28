@@ -92,7 +92,7 @@ elements:
   data:
     name: Register
     mode: dynamic
-    kind: enlist
+    kind: invoke
     accepts:
     - slot: 0
       label: label

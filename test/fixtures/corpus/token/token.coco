@@ -25,8 +25,8 @@ endpoint deploy Init(name String, symbol String) -> (added U64, removed U64):
     mutate U256(0) -> Token.Logic.supply payer Logic
     added, removed = Environment.StorageResult(Identifier(Token), Identifier(Token))
 
-endpoint enlist Register():
-    mutate U256(0) -> Token.Sender.balance
+// No registration endpoint: an actor that was never written reads its balance
+// as zero, which is all the enlist endpoint this used to have ever did.
 
 function static RequireSupply(amount U256):
     memory supply U256

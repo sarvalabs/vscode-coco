@@ -1,4 +1,4 @@
-// Everything Cocolang 0.9.1 / PISA 0.8.0 supports, in its correct form.
+// Everything Cocolang 0.9.2 / PISA 0.8.0 supports, in its correct form.
 // This file compiles cleanly with `coco compile`, so the language server must
 // report no diagnostics for it.
 
@@ -12,12 +12,19 @@ class Wrapper:
     field person Person
     field tags []String
 
+class Profile:
+    field name String
+    field tags Map[String]U64
+
 state logic:
     name String
     config String
+    scores Map[String]U64
+    profile Profile
 
 state actor:
     tag String
+    registered Bool
     balance U64
 
 interface Remote:
@@ -88,7 +95,13 @@ endpoint pure CheckSigned(participant Identifier) -> (signed Bool):
 
 // --- environment ---------------------------------------------------------
 
-endpoint enlist Register(tag String) -> (added U64, removed U64):
+// What used to be an `enlist` endpoint: dynamic, and guarded, because unlike
+// enlist it can be called again.
+endpoint dynamic Register(tag String) -> (added U64, removed U64):
+    mutate done <- NewFeatures.Sender.registered:
+        if done:
+            throw "already registered"
+        done = true
     mutate tag -> NewFeatures.Sender.tag
     added, removed = Environment.StorageResult(account_id: Sender, payer_id: Sender)
 
@@ -152,3 +165,70 @@ endpoint static SupplyVia(remote Identifier) -> (supply U256):
 endpoint dynamic MintVia(remote Identifier, amount U256):
     memory r = Remote(remote)
     r.Mint(amount: amount)
+
+// --- grouped constants (0.9.2) -------------------------------------------
+
+const:
+    DEFAULT_TAG String = "member"
+    MAX_TAGS U64 = 8
+    FLOOR I64 = -5
+    OPEN Bool = true
+
+pub const:
+    VERSION U64 = 2
+
+const LIMIT U64 = 100
+
+endpoint pure Limits() -> (tag String, total U64, floor I64, open Bool):
+    tag = DEFAULT_TAG
+    total = MAX_TAGS + VERSION + LIMIT
+    floor = FLOOR
+    open = OPEN
+
+// --- named outputs (0.9.2) -----------------------------------------------
+
+// The `(names) <- ` capture works on Environment, Invocation and Builtins
+// calls; the names must be the ones each output is declared with.
+endpoint pure Stamp() -> (ts U64, who Identifier):
+    ts = (timestamp) <- Environment.Timestamp()
+    memory c = (caller) <- Invocation.Caller()
+    who = c
+
+endpoint pure CaptureStorage() -> (a U64, r U64):
+    a, r = (added, removed) <- Environment.StorageResult(Identifier(NewFeatures), Sender)
+
+// Only one output wanted: capture both names, discard on the left.
+endpoint pure AddedOnly() -> (added U64):
+    added, _ = (added, removed) <- Environment.StorageResult(Identifier(NewFeatures), Sender)
+
+endpoint pure Verify(data Bytes, signature Bytes, pubkey Bytes) -> (valid Bool, digest U256):
+    valid = (ok) <- Builtins.Sigverify(data, signature, pubkey)
+    digest = (hash) <- Builtins.Keccak(data)
+
+// --- maps disperse into storage again (0.9.2) ----------------------------
+
+// Dispersing a map merges it into the stored one; it never clears a key.
+endpoint dynamic AddScores(extra Map[String]U64):
+    mutate scores <- NewFeatures.Logic.scores:
+        disperse scores <- extra
+
+endpoint dynamic SeedScores():
+    mutate scores <- NewFeatures.Logic.scores:
+        disperse Map[String]U64{"a": 1, "b": 2} -> scores
+
+// A class holding a map disperses too: scalar fields are replaced, the map merges.
+endpoint dynamic SetProfile(p Profile):
+    mutate stored <- NewFeatures.Logic.profile:
+        disperse stored <- p
+
+// A stored map is still read element by element — gathering one whole is not
+// allowed — and a class around it the same way.
+endpoint static ScoreOf(key String) -> (score U64):
+    observe scores <- NewFeatures.Logic.scores:
+        if scores[key]?:
+            score = scores[key]
+
+endpoint static ProfileTag(key String) -> (name String, tag U64):
+    observe profile <- NewFeatures.Logic.profile:
+        name = profile.name
+        tag = profile.tags[key]

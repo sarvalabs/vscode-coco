@@ -6,6 +6,12 @@
             "include": "#block_comment"
         },
         {
+            "include": "#output_captures"
+        },
+        {
+            "include": "#const_declarations"
+        },
+        {
             "include": "#brackets"
         },
         {
@@ -677,13 +683,90 @@
             "patterns": [
                 {
                     "comment": "Superglobal methods: Environment / Invocation / Builtins / Actor(id)",
-                    "match": "(?<=\\.)\\b(Timestamp|EffortCapacity|EffortAvailable|StorageResult|VolumeCapacity|VolumeAvailable|ClusterID|ID|Caller|Kind|FuelLimit|FuelPrice|Sha256|Keccak|Blake2b|Sigverify|Exists|HasSigned|Param)\\b(?=\\s*\\()",
-                    "name": "support.function.builtin.coco"
+                    "match": "(?<=Environment|Invocation|Builtins|\\))(\\.)(Timestamp|EffortCapacity|EffortAvailable|StorageResult|VolumeCapacity|VolumeAvailable|ClusterID|ID|Caller|Kind|FuelLimit|FuelPrice|Sha256|Keccak|Blake2b|Sigverify|Exists|HasSigned|Param)\\b(?=\\s*\\()",
+                    "captures": {
+                        "2": {
+                            "name": "support.function.builtin.coco"
+                        }
+                    }
                 },
                 {
                     "comment": "Asset engine methods",
-                    "match": "(?<=\\basset\\.)\\b([A-Za-z_][A-Za-z0-9_]*)\\b(?=\\s*\\()",
-                    "name": "support.function.asset.coco"
+                    "match": "(?<=\\basset)(\\.)([A-Za-z_][A-Za-z0-9_]*)\\b(?=\\s*\\()",
+                    "captures": {
+                        "2": {
+                            "name": "support.function.asset.coco"
+                        }
+                    }
+                }
+            ]
+        },
+        "const_declarations": {
+            "patterns": [
+                {
+                    "comment": "Grouped constants: `pub? const:` then indented `NAME Type = literal` lines, up to the next line in column 0",
+                    "begin": "^(?:(pub)\\s+)?(const)\\s*(:)",
+                    "beginCaptures": {
+                        "1": {
+                            "name": "keyword.other.coco"
+                        },
+                        "2": {
+                            "name": "keyword.types.coco"
+                        }
+                    },
+                    "end": "^(?=\\S)",
+                    "patterns": [
+                        {
+                            "match": "^\\s+([A-Za-z_][A-Za-z0-9_]*)\\b",
+                            "captures": {
+                                "1": {
+                                    "name": "variable.other.constant.coco"
+                                }
+                            }
+                        },
+                        {
+                            "include": "$self"
+                        }
+                    ]
+                },
+                {
+                    "comment": "Single-line constant: `pub? const NAME Type = literal`",
+                    "match": "^(?:(pub)\\s+)?(const)\\s+([A-Za-z_][A-Za-z0-9_]*)\\b",
+                    "captures": {
+                        "1": {
+                            "name": "keyword.other.coco"
+                        },
+                        "2": {
+                            "name": "keyword.types.coco"
+                        },
+                        "3": {
+                            "name": "variable.other.constant.coco"
+                        }
+                    }
+                }
+            ]
+        },
+        "output_captures": {
+            "patterns": [
+                {
+                    "comment": "Named-output capture in front of a call: `(added, removed) <- Environment.StorageResult(...)`",
+                    "match": "(\\()\\s*([A-Za-z_][A-Za-z0-9_]*(?:\\s*,\\s*[A-Za-z_][A-Za-z0-9_]*)*)\\s*,?\\s*(\\))(?=\\s*<-)",
+                    "captures": {
+                        "1": {
+                            "name": "punctuation.other.bracket.round.coco"
+                        },
+                        "2": {
+                            "patterns": [
+                                {
+                                    "match": "[A-Za-z_][A-Za-z0-9_]*",
+                                    "name": "variable.other.output.coco"
+                                }
+                            ]
+                        },
+                        "3": {
+                            "name": "punctuation.other.bracket.round.coco"
+                        }
+                    }
                 }
             ]
         }

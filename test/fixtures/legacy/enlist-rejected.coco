@@ -1,0 +1,9 @@
+// `endpoint enlist` is rejected on every PISA target, legacy ones included.
+coco EnlistRejected
+
+state actor:
+    balance U64
+
+// EXPECT: enlist endpoints are not supported
+endpoint enlist Register():
+    mutate 0 -> EnlistRejected.Sender.balance

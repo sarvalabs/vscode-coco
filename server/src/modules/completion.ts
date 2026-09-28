@@ -31,11 +31,6 @@ export const completionItems = (): CompletionItem[] => {
 			data: 5
 		},
 		{
-			label: 'enlist',
-			kind: CompletionItemKind.Text,
-			data: 6
-		},
-		{
 			label: 'endpoint',
 			kind: CompletionItemKind.Text,
 			data: 7
@@ -200,10 +195,6 @@ export const completionDetails = (item: CompletionItem): CompletionItem => {
 			item.detail = 'invokable declaration';
 			item.documentation = 'Invokables are endpoints called externally by a single participant. This is the default lifecycle, so the keyword is usually omitted.';
 			break;
-		case 6:
-			item.detail = 'enlister declaration';
-			item.documentation = 'Enlisters run once per actor, when a participant joins the logic, and initialize that actor\'s state. They take no state qualifier.';
-			break;
 		case 7:
 			item.detail = 'endpoint declaration';
 			item.documentation = 'A endpoint in Coco is a callable element for code organization and reusability.';
@@ -306,15 +297,15 @@ export const completionDetails = (item: CompletionItem): CompletionItem => {
 			break;
 		case 35:
 			item.detail = 'Environment superglobal';
-			item.documentation = 'Runtime context: Timestamp(), EffortCapacity(), EffortAvailable(), and StorageResult(account_id, payer_id) on PISA 0.8.0. A labelled or bare-variable argument must use the declared name.';
+			item.documentation = 'Runtime context: Timestamp() -> timestamp, EffortCapacity() -> effort_capacity, EffortAvailable() -> effort_available, and StorageResult(account_id, payer_id) -> (added, removed) on PISA 0.8.0. A labelled or bare-variable argument must use the declared name, and the optional (outputs) <- capture must use the output names.';
 			break;
 		case 36:
 			item.detail = 'Invocation superglobal';
-			item.documentation = 'Current invocation: ID() and Caller(). Identifier(Invocation) converts it to an Identifier.';
+			item.documentation = 'Current invocation: ID() -> id and Caller() -> caller. Identifier(Invocation) converts it to an Identifier. The optional (outputs) <- capture must use the output name.';
 			break;
 		case 37:
 			item.detail = 'Builtins superglobal';
-			item.documentation = 'Cryptographic builtins: Sha256(), Keccak(), Blake2b() and Sigverify().';
+			item.documentation = 'Cryptographic builtins: Sha256(), Keccak() and Blake2b() -> hash, and Sigverify() -> ok. The optional (outputs) <- capture must use the output name.';
 			break;
 		default:
 			break;
