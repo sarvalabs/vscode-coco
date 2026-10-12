@@ -1,0 +1,355 @@
+syntax: 1
+engine:
+  kind: PISA
+  flags: []
+  version: 0.8.0
+kind: logic
+elements:
+- ptr: 0
+  kind: literal
+  data:
+    type: u64
+    value: '0x0303'
+- ptr: 1
+  kind: typedef
+  data: '[]u64'
+- ptr: 2
+  kind: state
+  data:
+    mode: logic
+    fields:
+    - slot: 0
+      label: counter
+      type: u64
+    - slot: 1
+      label: counter2
+      type: u64
+- ptr: 3
+  deps:
+  - 2
+  kind: callable
+  data:
+    name: Init
+    mode: dynamic
+    kind: deploy
+    accepts: []
+    returns: []
+    executes:
+      bin: []
+    catches: []
+- ptr: 4
+  deps:
+  - 2
+  kind: callable
+  data:
+    name: TickReport
+    mode: dynamic
+    kind: invoke
+    accepts: []
+    returns:
+    - slot: 0
+      label: out_added
+      type: u64
+    - slot: 1
+      label: out_removed
+      type: u64
+    executes:
+      asm:
+      - LOGIC $2
+      - ORIGIN $3
+      - VOLRES $0 $1 $2 $3
+      - LLOAD $2 &0
+      - GATHER $3 $2
+      - INCR $3
+      - DISPER $2 $3
+      - STORE $2
+      - LOGIC $4
+      - ORIGIN $5
+      - VOLRES $2 $3 $4 $5
+      - SUB $0 $2 $0
+      - YIELD $0 &0
+      - SUB $0 $3 $1
+      - YIELD $0 &1
+    catches: []
+- ptr: 5
+  deps:
+  - 2
+  kind: callable
+  data:
+    name: ClearReport
+    mode: dynamic
+    kind: invoke
+    accepts: []
+    returns:
+    - slot: 0
+      label: out_added
+      type: u64
+    - slot: 1
+      label: out_removed
+      type: u64
+    executes:
+      asm:
+      - LOGIC $2
+      - ORIGIN $3
+      - VOLRES $0 $1 $2 $3
+      - LLOAD $2 &0
+      - SWEEP $2
+      - STORE $2
+      - LOGIC $4
+      - ORIGIN $5
+      - VOLRES $2 $3 $4 $5
+      - SUB $0 $2 $0
+      - YIELD $0 &0
+      - SUB $0 $3 $1
+      - YIELD $0 &1
+    catches: []
+- ptr: 6
+  deps:
+  - 2
+  kind: callable
+  data:
+    name: Tick
+    mode: dynamic
+    kind: invoke
+    accepts: []
+    returns: []
+    executes:
+      asm:
+      - LLOAD $0 &0
+      - GATHER $1 $0
+      - INCR $1
+      - DISPER $0 $1
+      - STORE $0
+    catches: []
+- ptr: 7
+  deps:
+  - 2
+  kind: callable
+  data:
+    name: CondClear
+    mode: dynamic
+    kind: invoke
+    accepts:
+    - slot: 0
+      label: limit
+      type: u64
+    returns: []
+    executes:
+      asm:
+      - LLOAD $0 &0
+      - GATHER $1 $0
+      - PMAKE $2 &1
+      - OBTAIN $3 &0
+      - GT $3 $1 $3
+      - NOT $3 $3
+      - LDPTR1 $4 0xb
+      - JUMPI $4 $3
+      - SWEEP $0
+      - PMAKE $2 &1
+      - NOT $2 $2
+      - DEST
+      - LDPTR1 $3 0xf
+      - JUMPI $3 $2
+      - DISPER $0 $1
+      - DEST
+      - STORE $0
+    catches: []
+- ptr: 8
+  deps:
+  - 2
+  kind: callable
+  data:
+    name: Clear
+    mode: dynamic
+    kind: invoke
+    accepts: []
+    returns: []
+    executes:
+      asm:
+      - LLOAD $0 &0
+      - SWEEP $0
+      - STORE $0
+    catches: []
+- ptr: 9
+  deps:
+  - 2
+  kind: callable
+  data:
+    name: Get
+    mode: static
+    kind: invoke
+    accepts: []
+    returns:
+    - slot: 0
+      label: v
+      type: u64
+    executes:
+      asm:
+      - LLOAD $0 &0
+      - YIELD $0 &0
+      - DUMP $0
+    catches: []
+- ptr: 10
+  deps:
+  - 2
+  kind: callable
+  data:
+    name: WriteAfterSweepInOtherBlock
+    mode: dynamic
+    kind: invoke
+    accepts:
+    - slot: 0
+      label: do_sweep
+      type: bool
+    returns: []
+    executes:
+      asm:
+      - LLOAD $0 &0
+      - GATHER $1 $0
+      - PMAKE $2 &1
+      - OBTAIN $3 &0
+      - NOT $3 $3
+      - LDPTR1 $4 0xc
+      - JUMPI $4 $3
+      - SWEEP $0
+      - PMAKE $2 &1
+      - NOT $2 $2
+      - LDPTR1 $4 0xe
+      - JUMP $4
+      - DEST
+      - INCR $1
+      - DEST
+      - LDPTR1 $3 0x12
+      - JUMPI $3 $2
+      - DISPER $0 $1
+      - DEST
+      - STORE $0
+    catches: []
+- ptr: 11
+  deps:
+  - 0
+  - 1
+  - 2
+  kind: callable
+  data:
+    name: SweepLoop
+    mode: dynamic
+    kind: invoke
+    accepts: []
+    returns:
+    - slot: 0
+      label: last
+      type: u64
+    - slot: 1
+      label: added
+      type: u64
+    - slot: 2
+      label: removed
+      type: u64
+    executes:
+      asm:
+      - PMAKE $0 &5
+      - PMAKE $1 &5
+      - LOGIC $2
+      - ORIGIN $3
+      - VOLRES $2 $3 $2 $3
+      - COPY $0 $2
+      - COPY $1 $3
+      - LLOAD $2 &0
+      - PMAKE $3 &5
+      - DISPER $2 $3
+      - STORE $2
+      - LDPTR1 $2 0x0
+      - LMAKE $2 $2
+      - LDPTR1 $3 0x1
+      - MAKE $3 $3
+      - PMAKE $4 &5
+      - PMAKE $5 &5
+      - DEST
+      - EQ $6 $2 $5
+      - LDPTR1 $7 0x1a
+      - JUMPI $7 $6
+      - APPEND $3 $4
+      - INCR $4
+      - DECR $2
+      - LDPTR1 $7 0x11
+      - JUMP $7
+      - DEST
+      - PMAKE $2 &5
+      - SIZE $4 $3
+      - DEST
+      - LT $5 $2 $4
+      - NOT $5 $5
+      - LDPTR1 $6 0x5c
+      - JUMPI $6 $5
+      - LLOAD $5 &0
+      - GATHER $7 $5
+      - PMAKE $8 &1
+      - PMAKE $9 &5
+      - EQ $9 $2 $9
+      - LDPTR1 $a 0x2b
+      - JUMPI $a $9
+      - LDPTR1 $a 0x30
+      - JUMP $a
+      - DEST
+      - INCR $7
+      - YIELD $7 &0
+      - LDPTR1 $a 0x52
+      - JUMP $a
+      - DEST
+      - PMAKE $9 &5
+      - INCR $9
+      - EQ $9 $2 $9
+      - LDPTR1 $a 0x38
+      - JUMPI $a $9
+      - LDPTR1 $a 0x3e
+      - JUMP $a
+      - DEST
+      - SWEEP $5
+      - PMAKE $8 &1
+      - NOT $8 $8
+      - LDPTR1 $a 0x52
+      - JUMP $a
+      - DEST
+      - SWEEP $5
+      - PMAKE $8 &1
+      - NOT $8 $8
+      - LLOAD $9 &1
+      - GATHER $a $9
+      - PMAKE $b &1
+      - PMAKE $c &1
+      - LDPTR1 $d 0x4c
+      - JUMPI $d $c
+      - INCR $a
+      - SWEEP $9
+      - PMAKE $b &1
+      - NOT $b $b
+      - DEST
+      - LDPTR1 $c 0x50
+      - JUMPI $c $b
+      - DISPER $9 $a
+      - DEST
+      - STORE $9
+      - DEST
+      - LDPTR1 $9 0x56
+      - JUMPI $9 $8
+      - DISPER $5 $7
+      - DEST
+      - STORE $5
+      - DEST
+      - INCR $2
+      - LDPTR1 $6 0x1d
+      - JUMP $6
+      - DEST
+      - PMAKE $2 &5
+      - PMAKE $3 &5
+      - LOGIC $4
+      - ORIGIN $5
+      - VOLRES $4 $5 $4 $5
+      - COPY $2 $4
+      - COPY $3 $5
+      - SUB $0 $2 $0
+      - YIELD $0 &1
+      - SUB $0 $3 $1
+      - YIELD $0 &2
+    catches: []

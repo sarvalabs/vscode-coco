@@ -1,3 +1,25 @@
+## v0.4.3
+Support for **Cocolang v0.9.3** targeting **PISA v0.8.0**.
+
+### `sweep` on primitives, and write-after-sweep
+- Coco 0.9.3 lets `sweep` take a primitive (`mutate c <- Mod.Logic.counter:` / `sweep(c)`),
+  not just a collection element. It works on every target that has logic state (PISA
+  0.4.0 and up), so there is no version gate to add; the extension already accepted the
+  call and still does.
+- A variable that was swept earlier in the **same block** can no longer be written to.
+  A swept variable is not flushed back at block exit, so the write used to compile and
+  silently never persist. It is now reported the way the compiler words it:
+  `variable 'c' was swept in this block and can't be assigned after sweep`.
+  `c = …`, `c += …`, `c++` and tuple targets such as `c, t = …` are all covered.
+- Only the innermost block counts, as in the compiler. A write in a nested block after
+  the sweep, in a sibling branch (`if … sweep(c) else … c += 1`), or in the parent once
+  the sweeping block has ended is still accepted, and so is re-acquiring the field with a
+  new `mutate`.
+
+### `coco.nut`
+- `[target.pisa] version = "0.8.1"` and `"0.8.2"` are accepted and treated as `0.8.0`,
+  which is what the compiler maps them to.
+
 ## v0.4.2
 Support for **Cocolang v0.9.2** targeting **PISA v0.8.0**.
 

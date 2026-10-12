@@ -1,0 +1,128 @@
+coco SweepTest
+
+state logic:
+    counter U64
+    counter2 U64
+
+// < deploy TEST.Init()
+// >
+endpoint deploy Init():
+    pass
+
+// ---- storage accounting: a write adds bytes, a sweep removes them ----
+// StorageResult is measured as a delta around the write: `coco test` doesn't reset the
+// counters between test lines, so the raw values are running totals for the whole file.
+// A U64 slot costs 40 bytes (32 bytes of key overhead + 8).
+
+// < invoke TEST.TickReport()
+// > out_added: 40 out_removed: 0
+endpoint dynamic TickReport() -> (out_added U64, out_removed U64):
+    memory added0 U64
+    memory removed0 U64
+    added0, removed0 = Environment.StorageResult(Identifier(SweepTest), Sender)
+    mutate c <- SweepTest.Logic.counter:
+        c += 1
+    memory added U64
+    memory removed U64
+    added, removed = Environment.StorageResult(Identifier(SweepTest), Sender)
+    out_added = added - added0
+    out_removed = removed - removed0
+
+// < invoke TEST.ClearReport()
+// > out_added: 0 out_removed: 40
+endpoint dynamic ClearReport() -> (out_added U64, out_removed U64):
+    memory added0 U64
+    memory removed0 U64
+    added0, removed0 = Environment.StorageResult(Identifier(SweepTest), Sender)
+    mutate c <- SweepTest.Logic.counter:
+        sweep(c)
+    memory added U64
+    memory removed U64
+    added, removed = Environment.StorageResult(Identifier(SweepTest), Sender)
+    out_added = added - added0
+    out_removed = removed - removed0
+
+// ---- sweep behaviour ----
+// < invoke TEST.Tick()
+// >
+// < invoke TEST.Tick()
+// >
+// < invoke TEST.Tick()
+// >
+endpoint dynamic Tick():
+    mutate c <- SweepTest.Logic.counter:
+        c += 1
+
+// counter is 3 here: limit 100 takes the not-swept path, limit 2 sweeps
+// < invoke TEST.CondClear(limit: 100)
+// >
+// < invoke TEST.Get()
+// > v: 3
+// < invoke TEST.CondClear(limit: 2)
+// >
+// < invoke TEST.Get()
+// > v: 0
+endpoint dynamic CondClear(limit U64):
+    mutate c <- SweepTest.Logic.counter:
+        if c > limit:
+            sweep(c)
+
+// < invoke TEST.Tick()
+// >
+// < invoke TEST.Clear()
+// >
+endpoint dynamic Clear():
+    mutate c <- SweepTest.Logic.counter:
+        sweep(c)
+
+// < invoke TEST.Get()
+// > v: 0
+endpoint static Get() -> (v U64):
+    observe v <- SweepTest.Logic.counter
+
+// < invoke TEST.WriteAfterSweepInOtherBlock(do_sweep: false)
+// >
+// < invoke TEST.Get()
+// > v: 1
+// < invoke TEST.WriteAfterSweepInOtherBlock(do_sweep: true)
+// >
+// < invoke TEST.Get()
+// > v: 0
+endpoint dynamic WriteAfterSweepInOtherBlock(do_sweep Bool):
+    mutate c <- SweepTest.Logic.counter:
+        if do_sweep:
+            sweep(c)
+        else:
+            c += 1
+
+// ---- multiple fields: dynamic sweep checks, including in nested blocks ----
+// counter is created (+40), set to 1 (same size, 0/0) and swept (-40); counter2 is only
+// written and swept inside the nested block, so it never reaches storage
+
+// < invoke TEST.SweepLoop()
+// > last:1 added:40 removed:40
+endpoint dynamic SweepLoop() -> (last, added, removed U64):
+    memory added0 U64
+    memory removed0 U64
+    added0, removed0 = Environment.StorageResult(account_id: Identifier(SweepTest), payer_id: Sender)
+    mutate 0 -> SweepTest.Logic.counter // make sure counter exists and is 0
+
+    for i in range(3):
+        mutate c <- SweepTest.Logic.counter:
+            switch i:
+                case 0:
+                    c += 1
+                    last = c
+                case 1:
+                    sweep(c)
+                default:
+                    sweep(c)
+                    mutate c2 <- SweepTest.Logic.counter2:
+                        if true:
+                            c2 += 1
+                            sweep(c2)
+    memory added1 U64
+    memory removed1 U64
+    added1, removed1 = Environment.StorageResult(account_id: Identifier(SweepTest), payer_id: Sender)
+    added = added1 - added0
+    removed = removed1 - removed0

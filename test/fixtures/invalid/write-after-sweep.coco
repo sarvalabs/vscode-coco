@@ -1,0 +1,44 @@
+coco WriteAfterSweep
+
+state logic:
+    counter U64
+    total U64
+
+endpoint deploy Init():
+    pass
+
+// Assigning, compound-assigning or incrementing a variable that was swept
+// earlier in the same block is rejected, however the write is spelled.
+endpoint dynamic Assign():
+    mutate c <- WriteAfterSweep.Logic.counter:
+        sweep(c)
+        // EXPECT: variable 'c' was swept in this block and can't be assigned after sweep
+        c = 5
+
+endpoint dynamic Augmented():
+    mutate c <- WriteAfterSweep.Logic.counter:
+        sweep(c)
+        // EXPECT: variable 'c' was swept in this block and can't be assigned after sweep
+        c += 1
+
+endpoint dynamic Increment():
+    mutate c <- WriteAfterSweep.Logic.counter:
+        sweep(c)
+        // EXPECT: variable 'c' was swept in this block and can't be assigned after sweep
+        c++
+
+// The sweep and the write sit in the same nested block.
+endpoint dynamic SameInnerBlock(flag Bool):
+    mutate c <- WriteAfterSweep.Logic.counter:
+        if flag:
+            sweep(c)
+            // EXPECT: variable 'c' was swept in this block and can't be assigned after sweep
+            c = 3
+
+// Sweeping one variable leaves the other one writable.
+endpoint dynamic TwoVariables():
+    mutate c, t <- WriteAfterSweep.Logic.counter, WriteAfterSweep.Logic.total:
+        sweep(c)
+        t = 1
+        // EXPECT: variable 'c' was swept in this block and can't be assigned after sweep
+        c, t = 2, 3

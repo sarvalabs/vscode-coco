@@ -1,0 +1,47 @@
+coco SweepPrimitives
+
+state logic:
+    counter U64
+    total U64
+
+endpoint deploy Init():
+    pass
+
+// Sweeping a primitive removes the slot from storage.
+endpoint dynamic Clear():
+    mutate c <- SweepPrimitives.Logic.counter:
+        sweep(c)
+
+// Writes in a sibling branch, a nested block or the parent block that follows
+// the sweeping block are all accepted by the compiler; only a write in the
+// *same* block as the sweep is not.
+endpoint dynamic Branches(do_sweep Bool):
+    mutate c <- SweepPrimitives.Logic.counter:
+        if do_sweep:
+            sweep(c)
+        else:
+            c += 1
+
+endpoint dynamic ParentAfterInner(do_sweep Bool):
+    mutate c <- SweepPrimitives.Logic.counter:
+        if do_sweep:
+            sweep(c)
+        c = 3
+
+endpoint dynamic NestedAfter():
+    mutate c <- SweepPrimitives.Logic.counter:
+        sweep(c)
+        if true:
+            c = 3
+
+endpoint dynamic OtherVariable():
+    mutate c, t <- SweepPrimitives.Logic.counter, SweepPrimitives.Logic.total:
+        sweep(c)
+        t = 1
+
+// Re-acquiring the field after the sweeping block gives a fresh variable.
+endpoint dynamic Reacquire():
+    mutate c <- SweepPrimitives.Logic.counter:
+        sweep(c)
+    mutate d <- SweepPrimitives.Logic.counter:
+        d = 4

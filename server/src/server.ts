@@ -117,6 +117,7 @@ async function validateTextDocument(textDocument: TextDocument): Promise<void> {
 	checkStateFieldReferences(text, stateIndex, interfaceStateIndex, classIndex, diagnostics);
 	checkPayerClauses(text, moduleContext.pisaVersion, diagnostics);
 	checkWholeStateWrites(text, stateIndex, classIndex, diagnostics);
+	checkWriteAfterSweep(text, diagnostics);
 	checkMapGather(text, stateIndex, classIndex, diagnostics);
 	checkFieldAccess(text, classIndex, diagnostics);
 	checkFStringChunks(text, classIndex, diagnostics);
@@ -566,7 +567,9 @@ const PISA_VERSION_ALIASES = new Map<string, PisaVersion>([
 	["0.6.1", "0.7.1"],
 	["0.7.0", "0.7.1"],
 	["0.7.1", "0.7.1"],
-	["0.8.0", "0.8.0"]
+	["0.8.0", "0.8.0"],
+	["0.8.1", "0.8.0"],
+	["0.8.2", "0.8.0"]
 ]);
 
 const PISA_VERSION_ORDER: PisaVersion[] = ["0.3.2", "0.4.0", "0.5.0", "0.7.1", "0.8.0"];
@@ -4848,6 +4851,111 @@ const checkWholeStateWrites = (
 				},
 				message: `'${parsedRef.fieldName}' is ${fieldType}, which lives in atomic storage and cannot be assigned whole`
 					+ `. Open a block instead — 'mutate ${parsedRef.fieldName} <- ${ref.text}:' — and use 'disperse' inside it`,
+				source: 'ex'
+			});
+		}
+	}
+};
+
+// checkWriteAfterSweep reports a write to a variable that an earlier `sweep(x)`
+// removed in the same block. Coco 0.9.3 lets `sweep` take a primitive (`mutate c
+// <- Mod.Logic.counter:` / `sweep(c)`), and a swept variable is not flushed back
+// at block exit, so a later write would compile and silently never persist; the
+// compiler now refuses it. Only the innermost block counts: a write in a nested
+// block, or in the parent after the sweeping block ended, is still accepted.
+const checkWriteAfterSweep = (text: string, diagnostics: Diagnostic[]): void => {
+	const lines = text.split(/\r?\n/);
+	const place = /^([A-Za-z_]\w*)(?:\s*\[[^\]]*\]|\s*\.\s*\w+)*$/;
+	// One entry per block that holds a sweep, keyed by the indent of its body.
+	const blocks: Array<{ indent: number; swept: Set<string> }> = [];
+
+	for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+		const line = lines[lineIndex];
+		const scanLine = stripCommentsAndStrings(line);
+		if (scanLine.trim().length === 0) {
+			continue;
+		}
+
+		const indent = scanLine.match(/^\s*/)?.[0].length ?? 0;
+		while (blocks.length > 0 && indent < blocks[blocks.length - 1].indent) {
+			blocks.pop();
+		}
+		const current = blocks.length > 0 && blocks[blocks.length - 1].indent === indent
+			? blocks[blocks.length - 1]
+			: null;
+		const body = scanLine.trim();
+
+		// A fresh binding of the same name is a different variable.
+		const binding = body.match(/^(?:mutate|observe)\s+(.+?)\s*<-/) ?? body.match(/^for\s+(.+?)\s+in\b/);
+		if (binding && current) {
+			for (const name of binding[1].split(",")) {
+				current.swept.delete(name.trim());
+			}
+		}
+		const memoryDecl = body.match(/^memory\s+([A-Za-z_]\w*)/);
+		if (memoryDecl && current) {
+			current.swept.delete(memoryDecl[1]);
+		}
+
+		const sweepCall = body.match(/^sweep\s*\(\s*([A-Za-z_]\w*)\s*\)$/);
+		if (sweepCall) {
+			if (current) {
+				current.swept.add(sweepCall[1]);
+			} else {
+				blocks.push({ indent, swept: new Set([sweepCall[1]]) });
+			}
+			continue;
+		}
+
+		if (!current || current.swept.size === 0) {
+			continue;
+		}
+
+		// Targets of `a = ...`, `a, b += ...` or `a++`.
+		let targetText: string | null = null;
+		let targetBase = 0;
+		const incr = body.match(/^(.+?)\s*(?:\+\+|--)$/);
+		if (incr) {
+			targetText = incr[1];
+			targetBase = indent;
+		} else {
+			let depth = 0;
+			for (let i = 0; i < scanLine.length; i++) {
+				const ch = scanLine[i];
+				if (ch === "(" || ch === "[" || ch === "{") { depth++; }
+				if (ch === ")" || ch === "]" || ch === "}") { depth--; }
+				if (ch !== "=" || depth !== 0) {
+					continue;
+				}
+				const prev = scanLine[i - 1] ?? "";
+				if (scanLine[i + 1] === "=") {
+					break;
+				}
+				const isShift = (prev === "<" || prev === ">") && scanLine[i - 2] === prev;
+				if ((prev === "!" || prev === "<" || prev === ">") && !isShift) {
+					break;
+				}
+				targetText = scanLine.slice(0, i).replace(/[+\-*/%&|^<>]+$/, "");
+				break;
+			}
+		}
+		if (targetText === null) {
+			continue;
+		}
+
+		for (const target of splitTopLevelSegments(targetText, ",")) {
+			const root = target.text.match(place);
+			if (!root || !current.swept.has(root[1])) {
+				continue;
+			}
+			const start = targetBase + target.start;
+			diagnostics.push({
+				severity: DiagnosticSeverity.Error,
+				range: {
+					start: { line: lineIndex, character: start },
+					end: { line: lineIndex, character: start + root[1].length }
+				},
+				message: `variable '${root[1]}' was swept in this block and can't be assigned after sweep`,
 				source: 'ex'
 			});
 		}
